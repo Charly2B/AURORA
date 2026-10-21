@@ -41,6 +41,7 @@ actor FakeAuroraAPI: AuroraServing {
         let logoutCalls: Int
         let listOffsets: [Int]
         let stateCalls: Int
+        let stateItemIDs: [Int64]
         let hiddenItemIDs: [Int64]
         let playRequests: [PlayRequest]
         let stoppedSessionIDs: [String]
@@ -71,6 +72,7 @@ actor FakeAuroraAPI: AuroraServing {
     private var setStateOutcome: FakeOutcome<Bool>
     private var hideContinueOutcome: FakeOutcome<Bool>
     private var stateCalls = 0
+    private var stateItemIDs: [Int64] = []
     private var hiddenItemIDs: [Int64] = []
     private var playPlans: [Double: FakePlayPlan]
     private var defaultPlayPlans: [FakePlayPlan]
@@ -120,7 +122,7 @@ actor FakeAuroraAPI: AuroraServing {
     }
 
     func snapshot() -> Snapshot {
-        Snapshot(statusCalls: statusCalls, linkStartCalls: linkStartCalls, linkPollCalls: linkPollCalls, loginCalls: loginCalls, loginUsername: loginUsername, loginPassword: loginPassword, logoutCalls: logoutCalls, listOffsets: listOffsets, stateCalls: stateCalls, hiddenItemIDs: hiddenItemIDs, playRequests: playRequests, stoppedSessionIDs: stoppedSessionIDs, progressCalls: progressCalls)
+        Snapshot(statusCalls: statusCalls, linkStartCalls: linkStartCalls, linkPollCalls: linkPollCalls, loginCalls: loginCalls, loginUsername: loginUsername, loginPassword: loginPassword, logoutCalls: logoutCalls, listOffsets: listOffsets, stateCalls: stateCalls, stateItemIDs: stateItemIDs, hiddenItemIDs: hiddenItemIDs, playRequests: playRequests, stoppedSessionIDs: stoppedSessionIDs, progressCalls: progressCalls)
     }
 
     func status() async throws -> Status {
@@ -185,6 +187,7 @@ actor FakeAuroraAPI: AuroraServing {
     }
     func setState(itemID: Int64, favorite: Bool?, watchlist: Bool?, watched: Bool?, season: Int?) async throws {
         stateCalls += 1
+        stateItemIDs.append(itemID)
         _ = try setStateOutcome.get()
     }
     func hideContinue(itemID: Int64) async throws {

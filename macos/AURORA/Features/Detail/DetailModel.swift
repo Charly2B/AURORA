@@ -96,6 +96,26 @@ final class DetailModel {
         }
     }
 
+    // Vu / non vu d'un épisode précis : le clic sur la ligne lance la lecture,
+    // seul ce bouton (ou le menu contextuel) bascule l'état vu de l'épisode.
+    func setEpisodeWatched(_ episode: Card, watched: Bool) async {
+        guard let index = episodes.firstIndex(where: { $0.id == episode.id }) else { return }
+        let original = episodes
+        var updated = original[index]
+        updated.watched = watched
+        // Comme côté serveur : le basculement vu remet la reprise à zéro.
+        updated.position = 0
+        episodes[index] = updated
+        errorMessage = nil
+        do {
+            try await api.setState(itemID: updated.id, favorite: nil, watchlist: nil, watched: watched, season: nil)
+            onChanged()
+        } catch {
+            episodes = original
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func hideContinue(onHidden: @MainActor (Int64) -> Void) async {
         do {
             try await api.hideContinue(itemID: itemID)

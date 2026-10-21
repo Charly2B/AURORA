@@ -84,6 +84,46 @@ struct DetailModelTests {
         #expect(model.episodes.map(\.id) == [2])
     }
 
+    @Test func episodeWatchedToggleTargetsEpisodeIDAndClearsResume() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeSeriesDetail()
+        let episodes = [episodeCard(7, watched: false, position: 640), episodeCard(8)]
+        let api = FakeAuroraAPI(server: server, details: [42: .value(detail)], episodes: ["42:2": .value(episodes)])
+        let model = DetailModel(itemID: 42, api: api)
+        await model.load()
+        await model.selectSeason(2)
+
+        await model.setEpisodeWatched(model.episodes[0], watched: true)
+
+        #expect(model.episodes[0].watched == true)
+        #expect(model.episodes[0].position == 0)
+        #expect(model.episodes[1].watched == false)
+        let snapshot = await api.snapshot()
+        #expect(snapshot.stateCalls == 1)
+        #expect(snapshot.stateItemIDs == [7]) // La série entière ne doit pas être marquée vue.
+    }
+
+    @Test func episodeWatchedRollsBackWhenServerRejects() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeSeriesDetail()
+        let episodes = [episodeCard(7, watched: false, position: 640)]
+        let api = FakeAuroraAPI(
+            server: server,
+            details: [42: .value(detail)],
+            episodes: ["42:2": .value(episodes)],
+            setState: .failure(APIError(code: 500, message: "Refus"))
+        )
+        let model = DetailModel(itemID: 42, api: api)
+        await model.load()
+        await model.selectSeason(2)
+
+        await model.setEpisodeWatched(model.episodes[0], watched: true)
+
+        #expect(model.episodes[0].watched == false)
+        #expect(model.episodes[0].position == 640)
+        #expect(model.errorMessage == "Refus")
+    }
+
     private func makeModel(detail: Detail) async throws -> DetailModel {
         let server = try ServerAddress.normalize("nas")
         let api = FakeAuroraAPI(server: server, details: [42: .value(detail)])
@@ -95,5 +135,13 @@ struct DetailModelTests {
     private func makeDetail(position: Double, watched: Bool, lastFileID: Int64?) -> Detail {
         let last = lastFileID.map(String.init) ?? "null"
         return decode(#"{"id":42,"kind":"movie","title":"Film","files":[{"id":10,"name":"A.mkv","duration":7200},{"id":20,"name":"B.mkv","duration":7200}],"state":{"position":\#(position),"duration":7200,"watched":\#(watched),"lastFileId":\#(last)},"seasons":[{"number":1,"title":"Saison 1"},{"number":2,"title":"Saison 2"}]}"#)
+    }
+
+    private func makeSeriesDetail() -> Detail {
+        decode(#"{"id":42,"kind":"series","title":"Série","files":[],"state":{},"seasons":[{"number":1,"title":"Saison 1"},{"number":2,"title":"Saison 2"}]}"#)
+    }
+
+    private func episodeCard(_ id: Int64, watched: Bool = false, position: Double = 0) -> Card {
+        decode(#"{"id":\#(id),"kind":"episode","title":"Épisode \#(id)","season":2,"episode":\#(id),"duration":1800,"position":\#(position),"watched":\#(watched),"overview":""}"#)
     }
 }

@@ -5,6 +5,8 @@ struct MediaCardView: View {
     let images: ImageRepository
     let onOpen: () -> Void
     var wide = false
+    // Optionnel : prévient la page quand la carte est survolée (fond ambiance).
+    var onAmbientHover: ((Card?) -> Void)? = nil
 
     @State private var hovered = false
 
@@ -41,7 +43,10 @@ struct MediaCardView: View {
         .buttonStyle(.plain)
         .scaleEffect(hovered ? 1.035 : 1)
         .animation(.easeOut(duration: 0.15), value: hovered)
-        .onHover { hovered = $0 }
+        .onHover { entered in
+            hovered = entered
+            if let onAmbientHover { onAmbientHover(entered ? card : nil) }
+        }
         .accessibilityLabel(card.title)
     }
 }

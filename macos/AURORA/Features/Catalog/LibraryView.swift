@@ -10,11 +10,20 @@ struct LibraryView: View {
     @State private var grouped = false
     @State private var scrollTarget: Int64?
     @State private var openedItemID: Int64?
+    @State private var ambientCard: Card?
 
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 20)]
 
+    // Image d'ambiance : carte survolée, sinon la première carte de la page.
+    private var featuredCard: Card? {
+        if grouped { return model.folders.first { !$0.items.isEmpty }?.items.first }
+        return model.items.first
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .top) {
+            AmbientBackdrop(card: ambientCard ?? featuredCard, images: images)
+            VStack(spacing: 0) {
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
                     ForEach(model.libraries) { library in
@@ -44,14 +53,14 @@ struct LibraryView: View {
                 if grouped {
                     LazyVStack(spacing: 28) {
                         ForEach(model.folders.filter { !$0.items.isEmpty }) { folder in
-                            FolderPanelView(folder: folder, kind: model.kind, images: images, onOpen: open)
+                            FolderPanelView(folder: folder, kind: model.kind, images: images, onOpen: open, onAmbientHover: changeAmbient)
                                 .id(folder.id)
                         }
                     }.scrollTargetLayout().padding(36)
                 } else {
                     LazyVGrid(columns: columns, spacing: 22) {
                         ForEach(model.items) { card in
-                            MediaCardView(card: card, images: images, onOpen: { open(card) })
+                            MediaCardView(card: card, images: images, onOpen: { open(card) }, onAmbientHover: changeAmbient)
                                 .id(card.id)
                         }
                     }.scrollTargetLayout().padding(36)
@@ -59,7 +68,9 @@ struct LibraryView: View {
             }
             .scrollPosition(id: $scrollTarget, anchor: .center)
             .overlay { LoadingStateView(state: model.state, emptyMessage: model.kind.emptyMessage) }
+            }
         }
+        .animation(.easeInOut(duration: 0.45), value: ambientCard?.id)
         .task {
             let saved = memory.restore(rootKey)
             if let saved {
@@ -76,6 +87,10 @@ struct LibraryView: View {
     }
 
     private var rootKey: BrowseKey { BrowseKey(origin: origin, tab: tab, libraryID: nil) }
+
+    private func changeAmbient(_ card: Card?) {
+        ambientCard = card
+    }
 
     private func open(_ card: Card) {
         openedItemID = card.id

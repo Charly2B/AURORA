@@ -5,6 +5,7 @@ struct FolderPanelView: View {
     let kind: MediaKind
     let images: ImageRepository
     let onOpen: (Card) -> Void
+    var onAmbientHover: ((Card?) -> Void)? = nil
 
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 20)]
 
@@ -23,7 +24,7 @@ struct FolderPanelView: View {
             .background(AuroraTheme.elevated)
             LazyVGrid(columns: columns, alignment: .leading, spacing: 22) {
                 ForEach(folder.items) { card in
-                    MediaCardView(card: card, images: images, onOpen: { onOpen(card) })
+                    MediaCardView(card: card, images: images, onOpen: { onOpen(card) }, onAmbientHover: onAmbientHover)
                 }
             }
             .padding(20)

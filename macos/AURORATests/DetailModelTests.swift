@@ -124,6 +124,62 @@ struct DetailModelTests {
         #expect(model.errorMessage == "Refus")
     }
 
+    @Test func artworkApplyFailsShowsServerMessageAndKeepsChoices() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeDetail(position: 0, watched: false, lastFileID: nil)
+        let choices: ArtworkChoices = decode(#"{"posters":[{"path":"/abc123.jpg","preview":"https://image.tmdb.org/t/p/w342/abc123.jpg","language":"fr","votes":7.5,"width":800,"height":1200}],"backdrops":[]}"#)
+        let api = FakeAuroraAPI(
+            server: server,
+            details: [42: .value(detail)],
+            artwork: [42: .value(choices)],
+            artworkSet: .failure(APIError(code: 400, message: "associez d'abord la bonne fiche TMDB"))
+        )
+        let model = DetailModel(itemID: 42, api: api, canEditArtwork: true)
+        await model.load()
+        await model.loadArtwork()
+
+        await model.applyArtwork(type: "poster", path: "/abc123.jpg")
+
+        #expect(model.errorMessage == "associez d'abord la bonne fiche TMDB")
+        #expect(model.artwork?.posters.first?.path == "/abc123.jpg") // les choix restent affichés
+        #expect(await api.snapshot().artworkSetCalls == ["42:poster:/abc123.jpg"])
+    }
+
+    @Test func artworkApplyRequestsServerAndResetsChoices() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeDetail(position: 0, watched: false, lastFileID: nil)
+        let choices: ArtworkChoices = decode(#"{"posters":[{"path":"/ok.jpg","preview":"https://img/ok.jpg"}],"backdrops":[]}"#)
+        let api = FakeAuroraAPI(
+            server: server,
+            details: [42: .value(detail)],
+            artwork: [42: .value(choices)]
+        )
+        let model = DetailModel(itemID: 42, api: api, canEditArtwork: true)
+        await model.load()
+        await model.loadArtwork()
+
+        await model.applyArtwork(type: "poster", path: "/ok.jpg")
+
+        #expect(await api.snapshot().artworkSetCalls == ["42:poster:/ok.jpg"])
+        #expect(model.artwork == nil)
+        #expect(model.detail != nil) // la fiche a été rechargée
+        #expect(model.artworkState == .idle)
+    }
+
+    @Test func artworkHiddenForNonAdmin() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeDetail(position: 0, watched: false, lastFileID: nil)
+        let api = FakeAuroraAPI(server: server, details: [42: .value(detail)])
+        let model = DetailModel(itemID: 42, api: api, canEditArtwork: false)
+        await model.load()
+
+        await model.loadArtwork()
+
+        #expect(model.artwork == nil)
+        #expect(model.artworkState == .idle)
+        #expect(await api.snapshot().artworkSetCalls == [])
+    }
+
     private func makeModel(detail: Detail) async throws -> DetailModel {
         let server = try ServerAddress.normalize("nas")
         let api = FakeAuroraAPI(server: server, details: [42: .value(detail)])

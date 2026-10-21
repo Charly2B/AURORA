@@ -47,6 +47,15 @@ struct MainShellView: View {
                 destination(route).id(route.identity)
             }
         }
+        // Événements serveur (SSE, administrateur) : dès qu'une analyse se termine —
+        // p. ex. un film supprimé dans le Finder — les listes et fiches ouvertes se rechargent.
+        .task {
+            guard profile.role == "admin" else { return }
+            let events = await api.scanEvents()
+            for await update in events {
+                if update.isTerminal { refreshCatalogs() }
+            }
+        }
     }
 
     private var sidebar: some View {
@@ -100,7 +109,7 @@ struct MainShellView: View {
         case .home:
             EmptyView()
         case .detail(let itemID):
-            DetailDestination(itemID: itemID, api: api, images: images, catalogGeneration: catalogGeneration, onChanged: refreshCatalogs, onOpen: open, onPlay: { intent, title in
+            DetailDestination(itemID: itemID, api: api, images: images, canEditArtwork: profile.role == "admin", catalogGeneration: catalogGeneration, onChanged: refreshCatalogs, onOpen: open, onPlay: { intent, title in
                 path.append(.player(intent, title: title))
             })
         case .player(let intent, let title):
@@ -155,8 +164,8 @@ private struct DetailDestination: View {
     let onPlay: (PlayIntent, String) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(itemID: Int64, api: any AuroraServing, images: ImageRepository, catalogGeneration: Int, onChanged: @escaping @MainActor () -> Void, onOpen: @escaping (Card) -> Void, onPlay: @escaping (PlayIntent, String) -> Void) {
-        _model = State(initialValue: DetailModel(itemID: itemID, api: api, onChanged: onChanged))
+    init(itemID: Int64, api: any AuroraServing, images: ImageRepository, canEditArtwork: Bool, catalogGeneration: Int, onChanged: @escaping @MainActor () -> Void, onOpen: @escaping (Card) -> Void, onPlay: @escaping (PlayIntent, String) -> Void) {
+        _model = State(initialValue: DetailModel(itemID: itemID, api: api, canEditArtwork: canEditArtwork, onChanged: onChanged))
         self.images = images
         self.catalogGeneration = catalogGeneration
         self.onOpen = onOpen

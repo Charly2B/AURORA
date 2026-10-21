@@ -219,6 +219,23 @@ struct Season: Codable, Sendable, Identifiable {
     var id: Int { number }
 }
 
+// Candidat d'affiche/fond proposé par TMDB (endpoint admin) ; seule l'URL `preview`
+// est affichée, le `path` est renvoyé au NAS pour appliquer le choix.
+struct ArtworkChoice: Codable, Sendable, Identifiable {
+    let path: String
+    let preview: String
+    var language: String?
+    var votes: Double?
+    var width: Int?
+    var height: Int?
+    var id: String { path }
+}
+
+struct ArtworkChoices: Codable, Sendable {
+    let posters: [ArtworkChoice]
+    let backdrops: [ArtworkChoice]
+}
+
 struct Detail: Codable, Sendable, Identifiable {
     let id: Int64
     let kind: String

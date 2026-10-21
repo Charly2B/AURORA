@@ -17,9 +17,13 @@ protocol AuroraServing: Sendable {
     func play(_ request: PlayRequest) async throws -> PlayResponse
     func progress(itemID: Int64, fileID: Int64, position: Double, duration: Double) async
     func setState(itemID: Int64, favorite: Bool?, watchlist: Bool?, watched: Bool?, season: Int?) async throws
+    func artworkChoices(itemID: Int64) async throws -> ArtworkChoices
+    func setArtwork(itemID: Int64, type: String, path: String) async throws
     func hideContinue(itemID: Int64) async throws
     func stopSession(id: String) async
     func imageData(path: String) async throws -> Data
+    // Événements serveur (SSE admin) : phases d'analyse. Flux auto-reconnecté, ne jette pas d'erreur.
+    func scanEvents() async -> AsyncStream<ScanUpdate>
     nonisolated func absoluteURL(_ path: String?) -> URL?
 }
 
@@ -138,6 +142,22 @@ actor AuroraAPI: AuroraServing {
         _ = try await call(method: "POST", path: "/items/\(itemID)/continue/hide", body: Data("{}".utf8))
     }
 
+    // Candidats TMDB (affiches/fonds) : `preview` est une URL publique TMDB,
+    // seul le chemin `path` est renvoyé au NAS au moment d'appliquer.
+    func artworkChoices(itemID: Int64) async throws -> ArtworkChoices {
+        try await get("/admin/items/\(itemID)/artwork")
+    }
+
+    func setArtwork(itemID: Int64, type: String, path: String) async throws {
+        struct Body: Encodable { let type: String; let path: String }
+        _ = try await post("/admin/items/\(itemID)/artwork", body: Body(type: type, path: path), as: EmptyResponse.self)
+    }
+
+    // Événements serveur (SSE, endpoint admin) : flux auto-reconnecté à l'image d'EventSource.
+    func scanEvents() async -> AsyncStream<ScanUpdate> {
+        AuroraAPI.eventStream(server: server, sessions: sessions, onUnauthorized: onUnauthorized)
+    }
+
     func stopSession(id: String) async {
         _ = try? await call(method: "DELETE", path: "/hls/\(id)")
     }
@@ -228,6 +248,69 @@ actor AuroraAPI: AuroraServing {
     private static func uppercaseFirst(_ message: String) -> String {
         guard let first = message.first else { return message }
         return first.uppercased() + message.dropFirst()
+    }
+
+    // Flux SSE : une URLSession dédiée, reconnexion périodique avec cookie courant.
+    // Hors actor (la boucle ne doit pas occuper l'isolat d'AuroraAPI).
+    private static func eventStream(
+        server: ServerAddress,
+        sessions: SessionStoring,
+        onUnauthorized: @escaping @Sendable () async -> Void
+    ) -> AsyncStream<ScanUpdate> {
+        let http = URLSession(configuration: .ephemeral)
+        return AsyncStream { continuation in
+            let task = Task.detached(priority: .utility) {
+                while !Task.isCancelled {
+                    guard let url = URL(string: server.origin + "/api/v1/events") else { break }
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "GET"
+                    request.setValue("1", forHTTPHeaderField: "X-Aurora")
+                    if let token = try? await sessions.token(for: server.origin), !token.isEmpty {
+                        request.setValue("aurora_session=\(token)", forHTTPHeaderField: "Cookie")
+                    }
+                    do {
+                        let (bytes, response) = try await http.bytes(for: request)
+                        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+                        guard (200..<300).contains(http.statusCode) else {
+                            if http.statusCode == 401 { await onUnauthorized() }
+                            break // 401/403 : pas de reconexion en boucle sur un refus d'accès.
+                        }
+                        for try await line in bytes.lines {
+                            guard line.hasPrefix("data: "), let data = line.dropFirst(6).data(using: .utf8) else { continue }
+                            if let envelope = try? JSONDecoder().decode(SSEEnvelope.self, from: data) {
+                                continuation.yield(envelope.update)
+                            }
+                        }
+                    } catch {
+                        if Task.isCancelled { break }
+                        // Connexion perdue : délai court comme un EventSource navigateur.
+                        try? await Task.sleep(for: .seconds(3))
+                    }
+                    if Task.isCancelled { break }
+                    try? await Task.sleep(for: .seconds(2))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+}
+
+// Enveloppe « {"type":"scan","data":{...}} » : seuls les champs utiles au client sont décodés.
+struct SSEEnvelope: Decodable, Sendable {
+    let type: String
+    let data: ScanUpdate
+
+    var update: ScanUpdate { type == "scan" ? data : ScanUpdate() }
+}
+
+// Événement d'analyse : terminal quand phase == "done" ou status != "running".
+struct ScanUpdate: Decodable, Sendable, Equatable {
+    var phase: String?
+    var status: String?
+
+    var isTerminal: Bool {
+        phase == "done" || (status != nil && status != "running")
     }
 }
 

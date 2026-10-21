@@ -11,6 +11,7 @@ struct PlayIntent: Equatable, Hashable, Sendable {
 @Observable
 final class DetailModel {
     let itemID: Int64
+    let canEditArtwork: Bool
     private let api: any AuroraServing
     private let onChanged: @MainActor () -> Void
     private var seasonGeneration = 0
@@ -20,11 +21,14 @@ final class DetailModel {
     private(set) var episodes: [Card] = []
     private(set) var state: CatalogLoadState = .idle
     private(set) var episodesState: CatalogLoadState = .idle
+    private(set) var artwork: ArtworkChoices?
+    private(set) var artworkState: CatalogLoadState = .idle
     var errorMessage: String?
 
-    init(itemID: Int64, api: any AuroraServing, onChanged: @escaping @MainActor () -> Void = {}) {
+    init(itemID: Int64, api: any AuroraServing, canEditArtwork: Bool = false, onChanged: @escaping @MainActor () -> Void = {}) {
         self.itemID = itemID
         self.api = api
+        self.canEditArtwork = canEditArtwork
         self.onChanged = onChanged
     }
 
@@ -120,6 +124,32 @@ final class DetailModel {
         do {
             try await api.hideContinue(itemID: itemID)
             onHidden(itemID)
+            onChanged()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: Affiche / fond d'écran (administrateur)
+
+    func loadArtwork() async {
+        guard canEditArtwork, artworkState != .loading else { return }
+        artworkState = .loading
+        do {
+            artwork = try await api.artworkChoices(itemID: itemID)
+            artworkState = .content
+        } catch {
+            artworkState = .error(error.localizedDescription)
+        }
+    }
+
+    func applyArtwork(type: String, path: String) async {
+        errorMessage = nil
+        do {
+            try await api.setArtwork(itemID: itemID, type: type, path: path)
+            artwork = nil
+            artworkState = .idle
+            await load()
             onChanged()
         } catch {
             errorMessage = error.localizedDescription

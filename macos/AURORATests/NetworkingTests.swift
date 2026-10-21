@@ -138,3 +138,15 @@ private actor UnauthorizedFlag {
     func mark() { value = true }
 }
 
+// Décodage du flux SSE : seuls les événements d'analyse aboutissent à un rafraîchissement.
+@Test func sseEnvelopeDecodesScanProgressAndTerminalState() throws {
+    let done = try JSONDecoder().decode(SSEEnvelope.self, from: Data(#"{"type":"scan","data":{"phase":"done","status":"ok","library":"Films","done":12,"total":12}}"#.utf8))
+    #expect(done.update.isTerminal == true)
+
+    let running = try JSONDecoder().decode(SSEEnvelope.self, from: Data(#"{"type":"scan","data":{"phase":"walk","status":"running","done":3,"total":12}}"#.utf8))
+    #expect(running.update.isTerminal == false)
+
+    let other = try JSONDecoder().decode(SSEEnvelope.self, from: Data(#"{"type":"heartbeat","data":{"phase":"done"}}"#.utf8))
+    #expect(other.update.isTerminal == false)
+}
+

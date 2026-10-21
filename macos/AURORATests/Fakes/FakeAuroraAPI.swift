@@ -42,6 +42,7 @@ actor FakeAuroraAPI: AuroraServing {
         let listOffsets: [Int]
         let stateCalls: Int
         let stateItemIDs: [Int64]
+        let artworkSetCalls: [String]
         let hiddenItemIDs: [Int64]
         let playRequests: [PlayRequest]
         let stoppedSessionIDs: [String]
@@ -71,6 +72,10 @@ actor FakeAuroraAPI: AuroraServing {
     private let episodeDelays: [String: Duration]
     private var setStateOutcome: FakeOutcome<Bool>
     private var hideContinueOutcome: FakeOutcome<Bool>
+    private var artworkOutcomes: [Int64: FakeOutcome<ArtworkChoices>]
+    private var artworkSetOutcome: FakeOutcome<Bool>
+    private var replayEvents: [ScanUpdate]
+    private var artworkSetCalls: [String] = []
     private var stateCalls = 0
     private var stateItemIDs: [Int64] = []
     private var hiddenItemIDs: [Int64] = []
@@ -97,6 +102,9 @@ actor FakeAuroraAPI: AuroraServing {
         episodeDelays: [String: Duration] = [:],
         setState: FakeOutcome<Bool> = .value(true),
         hideContinue: FakeOutcome<Bool> = .value(true),
+        artwork: [Int64: FakeOutcome<ArtworkChoices>] = [:],
+        artworkSet: FakeOutcome<Bool> = .value(true),
+        replayEvents: [ScanUpdate] = [],
         plays: [Double: FakePlayPlan] = [:],
         defaultPlays: [FakePlayPlan] = [],
         next: FakeOutcome<Card?> = .value(nil)
@@ -116,13 +124,16 @@ actor FakeAuroraAPI: AuroraServing {
         self.episodeDelays = episodeDelays
         setStateOutcome = setState
         hideContinueOutcome = hideContinue
+        artworkOutcomes = artwork
+        artworkSetOutcome = artworkSet
+        self.replayEvents = replayEvents
         playPlans = plays
         defaultPlayPlans = defaultPlays
         nextOutcome = next
     }
 
     func snapshot() -> Snapshot {
-        Snapshot(statusCalls: statusCalls, linkStartCalls: linkStartCalls, linkPollCalls: linkPollCalls, loginCalls: loginCalls, loginUsername: loginUsername, loginPassword: loginPassword, logoutCalls: logoutCalls, listOffsets: listOffsets, stateCalls: stateCalls, stateItemIDs: stateItemIDs, hiddenItemIDs: hiddenItemIDs, playRequests: playRequests, stoppedSessionIDs: stoppedSessionIDs, progressCalls: progressCalls)
+        Snapshot(statusCalls: statusCalls, linkStartCalls: linkStartCalls, linkPollCalls: linkPollCalls, loginCalls: loginCalls, loginUsername: loginUsername, loginPassword: loginPassword, logoutCalls: logoutCalls, listOffsets: listOffsets, stateCalls: stateCalls, stateItemIDs: stateItemIDs, artworkSetCalls: artworkSetCalls, hiddenItemIDs: hiddenItemIDs, playRequests: playRequests, stoppedSessionIDs: stoppedSessionIDs, progressCalls: progressCalls)
     }
 
     func status() async throws -> Status {
@@ -195,6 +206,26 @@ actor FakeAuroraAPI: AuroraServing {
         hiddenItemIDs.append(itemID)
     }
     func stopSession(id: String) async { stoppedSessionIDs.append(id) }
+
+    func artworkChoices(itemID: Int64) async throws -> ArtworkChoices {
+        try artworkOutcomes[itemID]?.get() ?? { throw unused() }()
+    }
+
+    func setArtwork(itemID: Int64, type: String, path: String) async throws {
+        artworkSetCalls.append("\(itemID):\(type):\(path)")
+        _ = try artworkSetOutcome.get()
+    }
+
+    // Rejoue les événements injectés puis ferme le flux.
+    func scanEvents() async -> AsyncStream<ScanUpdate> {
+        AsyncStream { continuation in
+            let events = replayEvents
+            for event in events {
+                continuation.yield(event)
+            }
+            continuation.finish()
+        }
+    }
     func imageData(path: String) async throws -> Data { throw unused() }
     nonisolated func absoluteURL(_ path: String?) -> URL? { path.flatMap { URL(string: server.origin + $0) } }
 

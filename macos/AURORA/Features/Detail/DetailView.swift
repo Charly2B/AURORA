@@ -7,6 +7,8 @@ struct DetailView: View {
     let onOpen: (Card) -> Void
     let onPlay: (PlayIntent) -> Void
 
+    @State private var showArtworkPicker = false
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             AuroraTheme.background.ignoresSafeArea()
@@ -18,9 +20,23 @@ struct DetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 28) {
                         HStack(alignment: .top, spacing: 36) {
-                            AuthenticatedImage(path: detail.poster ?? detail.thumb, repository: images)
-                                .frame(width: 220, height: 330)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            ZStack(alignment: .bottomTrailing) {
+                                AuthenticatedImage(path: detail.poster ?? detail.thumb, repository: images)
+                                    .frame(width: 220, height: 330)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                if model.canEditArtwork, detail.kind == "movie" || detail.kind == "series" {
+                                    Button {
+                                        showArtworkPicker = true
+                                    } label: {
+                                        Label("Changer l'affiche", systemImage: "photo")
+                                            .labelStyle(.iconOnly)
+                                            .font(.body)
+                                            .padding(8).background(.thinMaterial, in: Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("Changer l'affiche ou le fond")
+                                }
+                            }
                             VStack(alignment: .leading, spacing: 12) {
                                 if detail.kind == "episode" { Text(detail.seriesTitle ?? "").foregroundStyle(AuroraTheme.accent) }
                                 Text(detail.title).font(.system(size: 44, weight: .bold)).lineLimit(2)
@@ -51,6 +67,9 @@ struct DetailView: View {
         }
         .foregroundStyle(AuroraTheme.paper)
         .overlay { LoadingStateView(state: model.state, emptyMessage: "Fiche indisponible.") }
+        .sheet(isPresented: $showArtworkPicker) {
+            ArtworkPickerView(model: model) { showArtworkPicker = false }
+        }
         .task { await model.load() }
     }
 

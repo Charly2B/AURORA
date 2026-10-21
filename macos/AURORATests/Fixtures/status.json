@@ -1,0 +1,16 @@
+{
+  "version": "0.1.8",
+  "setupDone": true,
+  "user": {
+    "id": 7,
+    "username": "remy",
+    "role": "admin",
+    "prefs": {
+      "autoplayNext": true,
+      "audioLang": "fre",
+      "subMode": "auto"
+    }
+  },
+  "futureServerField": "ignored"
+}
+

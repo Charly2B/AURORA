@@ -1,0 +1,87 @@
+#!/bin/sh
+# AURORA — démarrage / arrêt / état, appelé par le Centre de paquets DSM (et au démarrage du NAS).
+# Exécuté sous l'utilisateur système « aurora » (conf/privilege : run-as package), jamais en root.
+
+PKG="${SYNOPKG_PKGNAME:-aurora}"
+DEST="${SYNOPKG_PKGDEST:-/var/packages/$PKG/target}"
+VAR="${SYNOPKG_PKGVAR:-/var/packages/$PKG/var}"
+TMP="${SYNOPKG_PKGTMP:-/var/packages/$PKG/tmp}"
+PIDFILE="$VAR/aurora.pid"
+LOGDIR="$VAR/logs"
+PORT=8890
+
+running() {
+    [ -s "$PIDFILE" ] || return 1
+    pid=$(cat "$PIDFILE" 2>/dev/null)
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+start() {
+    if running; then
+        return 0
+    fi
+    mkdir -p "$LOGDIR" "$TMP/work" || return 1
+    # Les segments vidéo temporaires vont dans le dossier temporaire du paquet (sur le volume, purgé par DSM
+    # à la désinstallation et à la mise à jour) ; la base et le cache dans var (conservé).
+    AURORA_FFMPEG="$DEST/bin/ffmpeg" AURORA_FFPROBE="$DEST/bin/ffprobe" \
+    nohup "$DEST/bin/aurora" \
+        -listen "0.0.0.0:$PORT" \
+        -data "$VAR" \
+        -tmp "$TMP/work" \
+        -log "$LOGDIR/aurora.log" \
+        >> "$LOGDIR/console.log" 2>&1 &
+    echo $! > "$PIDFILE"
+    # Laisse au serveur le temps d'ouvrir la base (migrations éventuelles) puis vérifie qu'il tourne.
+    i=0
+    while [ $i -lt 10 ]; do
+        sleep 1
+        running || break
+        i=$((i + 1))
+        [ $i -ge 3 ] && return 0
+    done
+    if ! running; then
+        echo "AURORA n'a pas pu démarrer. Détails : $LOGDIR/console.log et $LOGDIR/aurora.log" > "${SYNOPKG_TEMP_LOGFILE:-/dev/null}"
+        tail -n 20 "$LOGDIR/console.log" 2>/dev/null
+        return 1
+    fi
+    return 0
+}
+
+stop() {
+    running || { : > "$PIDFILE" 2>/dev/null; return 0; }
+    pid=$(cat "$PIDFILE")
+    kill -TERM "$pid" 2>/dev/null
+    # Arrêt propre : sessions de lecture fermées, base refermée (jusqu'à 20 s).
+    i=0
+    while [ $i -lt 20 ] && kill -0 "$pid" 2>/dev/null; do
+        sleep 1
+        i=$((i + 1))
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -KILL "$pid" 2>/dev/null
+    fi
+    : > "$PIDFILE"
+    return 0
+}
+
+case "$1" in
+    start)
+        start
+        exit $?
+        ;;
+    stop)
+        stop
+        exit $?
+        ;;
+    status)
+        if running; then exit 0; fi
+        exit 3
+        ;;
+    log)
+        echo "$LOGDIR/aurora.log"
+        exit 0
+        ;;
+    *)
+        exit 0
+        ;;
+esac

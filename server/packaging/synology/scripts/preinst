@@ -1,0 +1,10 @@
+#!/bin/sh
+# Vérifications avant installation (aucun effet de bord, cf. guide développeur Synology).
+case "$(uname -m)" in
+    x86_64) ;;
+    *)
+        echo "AURORA nécessite un NAS à processeur x86-64 (détecté : $(uname -m))." > "${SYNOPKG_TEMP_LOGFILE:-/dev/stderr}"
+        exit 1
+        ;;
+esac
+exit 0

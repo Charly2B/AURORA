@@ -1,0 +1,17 @@
+AURORA — médiathèque personnelle pour Synology DSM 7
+
+Logiciel destiné à un usage personnel. AURORA lit vos fichiers vidéo en lecture seule :
+il ne les modifie, ne les déplace et ne les supprime jamais.
+
+Composants tiers inclus dans ce paquet :
+
+- FFmpeg 7.0.2 (build statique de John Van Sickle, https://johnvansickle.com/ffmpeg/),
+  distribué sous licence GNU GPL version 3. FFmpeg est livré sous forme de programmes séparés
+  (bin/ffmpeg, bin/ffprobe) appelés par AURORA. Texte de la licence : licenses/FFMPEG-GPLv3.txt.
+  Code source : https://ffmpeg.org/releases/ffmpeg-7.0.2.tar.xz et sources des bibliothèques
+  listées dans licenses/FFMPEG-BUILD-README.txt.
+- Autres composants (SQLite, React, hls.js, polices…) : voir licenses/THIRD_PARTY_NOTICES.md.
+
+Données de films et séries : This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+LE LOGICIEL EST FOURNI « EN L'ÉTAT », SANS GARANTIE D'AUCUNE SORTE.

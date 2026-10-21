@@ -1,0 +1,74 @@
+name: AURORA
+options:
+  bundleIdPrefix: com.remyj
+  developmentLanguage: fr
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+packages:
+  MPVKit:
+    url: https://github.com/mpvkit/MPVKit.git
+    exactVersion: 1.0.0
+targets:
+  AURORA:
+    type: application
+    platform: macOS
+    sources:
+      - path: AURORA
+        excludes:
+          - Resources
+      - path: AURORA/Resources
+        buildPhase: resources
+    info:
+      path: AURORA/Info.plist
+      properties:
+        CFBundleDisplayName: AURORA
+        CFBundleDevelopmentRegion: fr
+        CFBundleLocalizations: [fr]
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSApplicationCategoryType: public.app-category.entertainment
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.remyj.AURORA
+        PRODUCT_NAME: AURORA
+        ENABLE_APP_SANDBOX: NO
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - package: MPVKit
+        product: MPVKit
+  AURORATests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AURORATests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.remyj.AURORATests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+    dependencies:
+      - target: AURORA
+schemes:
+  AURORA:
+    build:
+      targets:
+        AURORA: all
+        AURORATests: [test]
+    test:
+      config: Debug
+      targets:
+        - AURORATests
+    run:
+      config: Debug
+    archive:
+      config: Release
+

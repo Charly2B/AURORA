@@ -1,0 +1,14 @@
+{
+  ".url": {
+    "com.aurora.mediacenter": {
+      "type": "url",
+      "title": "AURORA",
+      "desc": "Médiathèque personnelle",
+      "icon": "images/aurora_{0}.png",
+      "allUsers": true,
+      "protocol": "http",
+      "port": "8890",
+      "url": "/"
+    }
+  }
+}

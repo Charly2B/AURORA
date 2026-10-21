@@ -1,0 +1,11 @@
+#!/bin/sh
+# Avant une mise à jour : le service est déjà arrêté par DSM. Copie de sécurité de la base, en plus de la
+# sauvegarde automatique qu'AURORA fait lui-même avant toute migration de schéma.
+VAR="${SYNOPKG_PKGVAR:-/var/packages/${SYNOPKG_PKGNAME:-aurora}/var}"
+if [ -f "$VAR/aurora.db" ]; then
+    mkdir -p "$VAR/backups" || exit 1
+    stamp=$(date +%Y%m%d-%H%M%S)
+    cp -p "$VAR/aurora.db" "$VAR/backups/avant-maj-${SYNOPKG_OLD_PKGVER:-ancienne}-$stamp.db" || exit 1
+    [ -f "$VAR/aurora.db-wal" ] && cp -p "$VAR/aurora.db-wal" "$VAR/backups/avant-maj-${SYNOPKG_OLD_PKGVER:-ancienne}-$stamp.db-wal"
+fi
+exit 0

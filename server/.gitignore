@@ -1,0 +1,10 @@
+/aurora-data/
+/dist/
+/build/
+internal/webui/dist/*
+!internal/webui/dist/.keep
+web/node_modules/
+web/dist/
+*.spk
+.DS_Store
+/testdata/media/

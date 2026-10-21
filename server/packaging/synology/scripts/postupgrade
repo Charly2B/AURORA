@@ -1,0 +1,4 @@
+#!/bin/sh
+VAR="${SYNOPKG_PKGVAR:-/var/packages/${SYNOPKG_PKGNAME:-aurora}/var}"
+mkdir -p "$VAR/logs" "$VAR/backups" || exit 1
+exit 0

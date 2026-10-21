@@ -1,0 +1,5 @@
+#!/bin/sh
+# Prépare les dossiers de données. Rien n'est modifié hors des dossiers propres au paquet.
+VAR="${SYNOPKG_PKGVAR:-/var/packages/${SYNOPKG_PKGNAME:-aurora}/var}"
+mkdir -p "$VAR/logs" "$VAR/backups" || exit 1
+exit 0

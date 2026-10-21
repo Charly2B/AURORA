@@ -1,0 +1,37 @@
+{
+  "hero": {
+    "id": 42,
+    "kind": "movie",
+    "title": "Dune",
+    "year": 2021,
+    "watched": false,
+    "favorite": true,
+    "watchlist": false,
+    "addedAt": 1730000000,
+    "newCardField": "ignored"
+  },
+  "sections": [
+    {
+      "id": "continue",
+      "title": "Continuer à regarder",
+      "items": [
+        {
+          "id": 84,
+          "kind": "episode",
+          "title": "Pilote",
+          "watched": false,
+          "favorite": false,
+          "watchlist": false,
+          "seriesId": 80,
+          "seriesTitle": "AURORA",
+          "season": 1,
+          "episode": 1,
+          "position": 120,
+          "duration": 3600,
+          "addedAt": 1730000001
+        }
+      ]
+    }
+  ]
+}
+

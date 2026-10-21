@@ -1,0 +1,4 @@
+#!/bin/sh
+# Désinstallation : AURORA ne supprime aucune donnée. La base, les sauvegardes et le cache restent dans
+# le dossier de données du paquet (/volumeX/@appdata/aurora) ; vos vidéos ne sont jamais concernées.
+exit 0

@@ -8,6 +8,7 @@ struct DetailView: View {
     let onPlay: (PlayIntent) -> Void
 
     @State private var showArtworkPicker = false
+    @State private var showIdentificationFix = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -51,6 +52,15 @@ struct DetailView: View {
                                         }
                                     }
                                 }
+                                if model.canEditArtwork, detail.kind == "movie" || detail.kind == "series" {
+                                    Button {
+                                        showIdentificationFix = true
+                                    } label: {
+                                        Label("Corriger l'identification", systemImage: "questionmark.square.dashed")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .help("Chercher la bonne fiche TMDB (nécessaire avant de changer l'affiche)")
+                                }
                                 if let overview = detail.overview { Text(overview).font(.body).foregroundStyle(AuroraTheme.mist).lineLimit(6) }
                                 if let error = model.errorMessage { Text(error).foregroundStyle(.red) }
                             }.frame(maxWidth: 850, alignment: .leading)
@@ -69,6 +79,9 @@ struct DetailView: View {
         .overlay { LoadingStateView(state: model.state, emptyMessage: "Fiche indisponible.") }
         .sheet(isPresented: $showArtworkPicker) {
             ArtworkPickerView(model: model) { showArtworkPicker = false }
+        }
+        .sheet(isPresented: $showIdentificationFix) {
+            IdentificationFixView(model: model) { showIdentificationFix = false }
         }
         .task { await model.load() }
     }

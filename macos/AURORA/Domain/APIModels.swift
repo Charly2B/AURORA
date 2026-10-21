@@ -236,6 +236,17 @@ struct ArtworkChoices: Codable, Sendable {
     let backdrops: [ArtworkChoice]
 }
 
+// Résultat de recherche TMDB pour la correction d'identification (endpoint admin).
+struct TMDbCandidate: Codable, Sendable, Identifiable {
+    let id: Int
+    let title: String
+    var originalTitle: String?
+    var year: Int?
+    var overview: String?
+    var poster: String?
+    var popularity: Double?
+}
+
 struct Detail: Codable, Sendable, Identifiable {
     let id: Int64
     let kind: String

@@ -43,6 +43,7 @@ actor FakeAuroraAPI: AuroraServing {
         let stateCalls: Int
         let stateItemIDs: [Int64]
         let artworkSetCalls: [String]
+        let matchCalls: [String]
         let hiddenItemIDs: [Int64]
         let playRequests: [PlayRequest]
         let stoppedSessionIDs: [String]
@@ -74,8 +75,11 @@ actor FakeAuroraAPI: AuroraServing {
     private var hideContinueOutcome: FakeOutcome<Bool>
     private var artworkOutcomes: [Int64: FakeOutcome<ArtworkChoices>]
     private var artworkSetOutcome: FakeOutcome<Bool>
+    private var candidateOutcomes: [String: FakeOutcome<[TMDbCandidate]>]
+    private var matchOutcome: FakeOutcome<Bool>
     private var replayEvents: [ScanUpdate]
     private var artworkSetCalls: [String] = []
+    private var matchCalls: [String] = []
     private var stateCalls = 0
     private var stateItemIDs: [Int64] = []
     private var hiddenItemIDs: [Int64] = []
@@ -104,6 +108,8 @@ actor FakeAuroraAPI: AuroraServing {
         hideContinue: FakeOutcome<Bool> = .value(true),
         artwork: [Int64: FakeOutcome<ArtworkChoices>] = [:],
         artworkSet: FakeOutcome<Bool> = .value(true),
+        candidates: [String: FakeOutcome<[TMDbCandidate]>] = [:],
+        match: FakeOutcome<Bool> = .value(true),
         replayEvents: [ScanUpdate] = [],
         plays: [Double: FakePlayPlan] = [:],
         defaultPlays: [FakePlayPlan] = [],
@@ -126,6 +132,8 @@ actor FakeAuroraAPI: AuroraServing {
         hideContinueOutcome = hideContinue
         artworkOutcomes = artwork
         artworkSetOutcome = artworkSet
+        candidateOutcomes = candidates
+        matchOutcome = match
         self.replayEvents = replayEvents
         playPlans = plays
         defaultPlayPlans = defaultPlays
@@ -133,7 +141,7 @@ actor FakeAuroraAPI: AuroraServing {
     }
 
     func snapshot() -> Snapshot {
-        Snapshot(statusCalls: statusCalls, linkStartCalls: linkStartCalls, linkPollCalls: linkPollCalls, loginCalls: loginCalls, loginUsername: loginUsername, loginPassword: loginPassword, logoutCalls: logoutCalls, listOffsets: listOffsets, stateCalls: stateCalls, stateItemIDs: stateItemIDs, artworkSetCalls: artworkSetCalls, hiddenItemIDs: hiddenItemIDs, playRequests: playRequests, stoppedSessionIDs: stoppedSessionIDs, progressCalls: progressCalls)
+        Snapshot(statusCalls: statusCalls, linkStartCalls: linkStartCalls, linkPollCalls: linkPollCalls, loginCalls: loginCalls, loginUsername: loginUsername, loginPassword: loginPassword, logoutCalls: logoutCalls, listOffsets: listOffsets, stateCalls: stateCalls, stateItemIDs: stateItemIDs, artworkSetCalls: artworkSetCalls, matchCalls: matchCalls, hiddenItemIDs: hiddenItemIDs, playRequests: playRequests, stoppedSessionIDs: stoppedSessionIDs, progressCalls: progressCalls)
     }
 
     func status() async throws -> Status {
@@ -209,6 +217,16 @@ actor FakeAuroraAPI: AuroraServing {
 
     func artworkChoices(itemID: Int64) async throws -> ArtworkChoices {
         try artworkOutcomes[itemID]?.get() ?? { throw unused() }()
+    }
+
+    func candidates(itemID: Int64, query: String) async throws -> [TMDbCandidate] {
+        let key = "\(itemID)|\(query)"
+        return try candidateOutcomes[key]?.get() ?? { throw unused() }()
+    }
+
+    func match(itemID: Int64, tmdbID: Int) async throws {
+        matchCalls.append("\(itemID)->\(tmdbID)")
+        _ = try matchOutcome.get()
     }
 
     func setArtwork(itemID: Int64, type: String, path: String) async throws {

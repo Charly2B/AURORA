@@ -19,6 +19,8 @@ protocol AuroraServing: Sendable {
     func setState(itemID: Int64, favorite: Bool?, watchlist: Bool?, watched: Bool?, season: Int?) async throws
     func artworkChoices(itemID: Int64) async throws -> ArtworkChoices
     func setArtwork(itemID: Int64, type: String, path: String) async throws
+    func candidates(itemID: Int64, query: String) async throws -> [TMDbCandidate]
+    func match(itemID: Int64, tmdbID: Int) async throws
     func hideContinue(itemID: Int64) async throws
     func stopSession(id: String) async
     func imageData(path: String) async throws -> Data
@@ -151,6 +153,18 @@ actor AuroraAPI: AuroraServing {
     func setArtwork(itemID: Int64, type: String, path: String) async throws {
         struct Body: Encodable { let type: String; let path: String }
         _ = try await post("/admin/items/\(itemID)/artwork", body: Body(type: type, path: path), as: EmptyResponse.self)
+    }
+
+    // Correction d'identification : candidats TMDB puis association verrouillée.
+    func candidates(itemID: Int64, query: String) async throws -> [TMDbCandidate] {
+        var queryItems: [URLQueryItem] = []
+        if !query.isEmpty { queryItems.append(URLQueryItem(name: "q", value: query)) } // sans q : le serveur recherche le titre de la fiche
+        return try await get("/admin/items/\(itemID)/candidates", query: queryItems)
+    }
+
+    func match(itemID: Int64, tmdbID: Int) async throws {
+        struct Body: Encodable { let tmdbId: Int }
+        _ = try await post("/admin/items/\(itemID)/match", body: Body(tmdbId: tmdbID), as: EmptyResponse.self)
     }
 
     // Événements serveur (SSE, endpoint admin) : flux auto-reconnecté à l'image d'EventSource.

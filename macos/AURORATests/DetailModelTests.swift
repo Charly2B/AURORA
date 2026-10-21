@@ -180,6 +180,55 @@ struct DetailModelTests {
         #expect(await api.snapshot().artworkSetCalls == [])
     }
 
+    @Test func identificationSearchLoadsCandidatesThenMatchReloadsDetail() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeDetail(position: 0, watched: false, lastFileID: nil)
+        let january: [TMDbCandidate] = decode(#"[{"id":11,"title":"Star Wars","year":1977,"overview":"Un film.","popularity":80.0}]"#)
+        let retour: [TMDbCandidate] = decode(#"[{"id":1891,"title":"Retour vers le futur","originalTitle":"Back to the Future","year":1985,"poster":"https://image.tmdb.org/t/p/w185/btf.jpg"}]"#)
+        let api = FakeAuroraAPI(
+            server: server,
+            details: [42: .value(detail)],
+            candidates: ["42|": .value(january), "42|futur": .value(retour)]
+        )
+        let model = DetailModel(itemID: 42, api: api, canEditArtwork: true)
+        await model.load()
+
+        await model.loadCandidates(query: "")
+        #expect(model.candidates.first?.id == 11)
+        #expect(model.candidatesState == .content)
+
+        await model.loadCandidates(query: "futur")
+        #expect(model.candidates.first?.title == "Retour vers le futur")
+
+        await model.applyMatch(1891)
+
+        #expect(await api.snapshot().matchCalls == ["42->1891"])
+        #expect(model.candidates.isEmpty)
+        #expect(model.candidatesState == .idle)
+        #expect(model.detail != nil) // la fiche est rechargée après association
+    }
+
+    @Test func identificationMatchFailureKeepsMessageAndCandidates() async throws {
+        let server = try ServerAddress.normalize("nas")
+        let detail = makeDetail(position: 0, watched: false, lastFileID: nil)
+        let january: [TMDbCandidate] = decode(#"[{"id":11,"title":"Star Wars"}]"#)
+        let api = FakeAuroraAPI(
+            server: server,
+            details: [42: .value(detail)],
+            candidates: ["42|": .value(january)],
+            match: .failure(APIError(code: 502, message: "l'association a échoué"))
+        )
+        let model = DetailModel(itemID: 42, api: api, canEditArtwork: true)
+        await model.load()
+        await model.loadCandidates(query: "")
+
+        await model.applyMatch(11)
+
+        #expect(model.errorMessage == "l'association a échoué")
+        #expect(model.candidates.first?.id == 11) // la liste reste ouverte pour un autre essai
+        #expect(model.candidatesState == .content)
+    }
+
     private func makeModel(detail: Detail) async throws -> DetailModel {
         let server = try ServerAddress.normalize("nas")
         let api = FakeAuroraAPI(server: server, details: [42: .value(detail)])

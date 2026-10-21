@@ -65,6 +65,10 @@ struct ArtworkPickerView: View {
             case .error(let message):
                 VStack(spacing: 10) {
                     Text(message).foregroundStyle(.red)
+                    if message.localizedCaseInsensitiveContains("associez") {
+                        Text("Ouvrez « Corriger l'identification » sur la fiche, puis revenez ici.")
+                            .foregroundStyle(AuroraTheme.mist).multilineTextAlignment(.center)
+                    }
                     Button("Réessayer") { Task { await model.loadArtwork() } }.buttonStyle(.bordered)
                 }.frame(maxWidth: .infinity, minHeight: 200)
             case .content, .empty:

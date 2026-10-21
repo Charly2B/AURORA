@@ -23,6 +23,8 @@ final class DetailModel {
     private(set) var episodesState: CatalogLoadState = .idle
     private(set) var artwork: ArtworkChoices?
     private(set) var artworkState: CatalogLoadState = .idle
+    private(set) var candidates: [TMDbCandidate] = []
+    private(set) var candidatesState: CatalogLoadState = .idle
     var errorMessage: String?
 
     init(itemID: Int64, api: any AuroraServing, canEditArtwork: Bool = false, onChanged: @escaping @MainActor () -> Void = {}) {
@@ -147,6 +149,36 @@ final class DetailModel {
         errorMessage = nil
         do {
             try await api.setArtwork(itemID: itemID, type: type, path: path)
+            artwork = nil
+            artworkState = .idle
+            await load()
+            onChanged()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: Correction d'identification (administrateur)
+
+    func loadCandidates(query: String) async {
+        guard canEditArtwork, candidatesState != .loading else { return }
+        candidatesState = .loading
+        do {
+            let results = try await api.candidates(itemID: itemID, query: query)
+            candidates = results
+            candidatesState = results.isEmpty ? .empty : .content
+        } catch {
+            candidatesState = .error(error.localizedDescription)
+        }
+    }
+
+    func applyMatch(_ tmdbID: Int) async {
+        errorMessage = nil
+        do {
+            try await api.match(itemID: itemID, tmdbID: tmdbID)
+            // La fiche a changé : candidats et affiches sont invalidés, tout se recharge.
+            candidates = []
+            candidatesState = .idle
             artwork = nil
             artworkState = .idle
             await load()

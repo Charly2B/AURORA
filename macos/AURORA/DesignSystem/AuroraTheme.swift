@@ -8,6 +8,8 @@ enum AuroraTheme {
     static let mist = Color(white: 0.72)
     static let ash = Color(white: 0.52)
     static let accent = Color(red: 0.93, green: 0.29, blue: 0.18)
+    // Vert « vu » : moins agressif que le rouge accent sur les listes d'épisodes.
+    static let green = Color(red: 0.30, green: 0.78, blue: 0.42)
 }
 
 struct AuroraChipStyle: ButtonStyle {

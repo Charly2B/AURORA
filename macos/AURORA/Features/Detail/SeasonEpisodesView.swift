@@ -45,7 +45,7 @@ struct SeasonEpisodesView: View {
                             } label: {
                                 Image(systemName: episode.watched ? "checkmark.circle.fill" : "checkmark.circle")
                                     .font(.title2)
-                                    .foregroundStyle(episode.watched ? AuroraTheme.accent : AuroraTheme.ash)
+                                    .foregroundStyle(episode.watched ? AuroraTheme.green : AuroraTheme.ash)
                                     .frame(width: 36, height: 36)
                             }
                             .buttonStyle(.plain)

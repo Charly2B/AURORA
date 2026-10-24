@@ -13,6 +13,28 @@ struct AppSessionIntegrationTests {
         #expect(AppRoute.initial(for: context.session) == .home)
     }
 
+    @Test func transientNetworkFailureRetriesBeforeShowingLogin() async throws {
+        let defaults = UserDefaults(suiteName: "AURORA-Retry-\(UUID().uuidString)")!
+        let store = ServerStore(defaults: defaults, sessions: MemorySessionStore())
+        let server = try store.add("nas-retry")
+        let user = testUser()
+        let api = FakeAuroraAPI(
+            server: server,
+            status: [
+                .failure(APIError(code: 0, message: "Réseau indisponible")),
+                .failure(APIError(code: 0, message: "Réseau indisponible")),
+                .value(testStatus(user: user))
+            ]
+        )
+        let session = AppSession(store: store, apiFactory: { _, _ in api }, sleeper: ImmediateSessionSleeper())
+
+        await session.restore()
+
+        #expect(session.phase == .authenticated)
+        #expect(session.profile?.username == "remy")
+        #expect(await api.snapshot().statusCalls == 3)
+    }
+
     @Test func changingNASReusesItsValidKeychainSessionAndClearsNavigationIdentity() async throws {
         let context = try IntegrationContext()
         await context.session.restore()
@@ -45,6 +67,10 @@ struct AppSessionIntegrationTests {
         #expect(first.identity != second.identity)
         #expect(AppRoute.detail(itemID: 10).identity != AppRoute.detail(itemID: 11).identity)
     }
+}
+
+private struct ImmediateSessionSleeper: SessionSleeping {
+    func sleep(for duration: Duration) async throws {}
 }
 
 @MainActor

@@ -67,6 +67,18 @@ final class SetupModel {
         }
     }
 
+    func retryLink(deviceName: String = Host.current().localizedName ?? "Mac") async {
+        cancelPolling()
+        link = nil
+        state = .requestingCode
+        do {
+            try await beginLink(deviceName: deviceName)
+            await pollLink()
+        } catch {
+            // beginLink conserve le message d'erreur pour l'écran de connexion.
+        }
+    }
+
     func pollLink() async {
         guard let secret = link?.poll, let api = session.service() else { return }
         pollGeneration += 1

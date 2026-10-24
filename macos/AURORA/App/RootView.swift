@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct RootView: View {
@@ -35,6 +36,9 @@ struct RootView: View {
         .frame(minWidth: 960, minHeight: 640)
         .preferredColorScheme(.dark)
         .task { if session.phase == .loading { await session.restore() } }
+        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didWakeNotification)) { _ in
+            Task { await session.restore() }
+        }
     }
 }
 
@@ -63,4 +67,3 @@ private struct SetupContainer: View {
         }
     }
 }
-

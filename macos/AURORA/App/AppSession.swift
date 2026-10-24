@@ -1,6 +1,16 @@
 import Foundation
 import Observation
 
+protocol SessionSleeping: Sendable {
+    func sleep(for duration: Duration) async throws
+}
+
+struct ContinuousSessionSleeper: SessionSleeping {
+    func sleep(for duration: Duration) async throws {
+        try await Task.sleep(for: duration)
+    }
+}
+
 enum AppPhase: Equatable {
     case loading
     case serverList
@@ -14,6 +24,7 @@ enum AppPhase: Equatable {
 final class AppSession {
     private let store: ServerStore
     private let apiFactory: AuroraAPIFactory
+    private let sleeper: any SessionSleeping
 
     @ObservationIgnored private(set) var api: (any AuroraServing)?
     private(set) var servers: [ServerAddress] = []
@@ -24,9 +35,14 @@ final class AppSession {
     private(set) var shellIdentity = UUID()
     private var activationGeneration = 0
 
-    init(store: ServerStore = ServerStore(), apiFactory: @escaping AuroraAPIFactory = AppDependencies.liveAPI) {
+    init(
+        store: ServerStore = ServerStore(),
+        apiFactory: @escaping AuroraAPIFactory = AppDependencies.liveAPI,
+        sleeper: any SessionSleeping = ContinuousSessionSleeper()
+    ) {
         self.store = store
         self.apiFactory = apiFactory
+        self.sleeper = sleeper
     }
 
     func restore() async {
@@ -37,18 +53,29 @@ final class AppSession {
         }
 
         let request = activate(server)
-        do {
-            let status = try await api?.status()
-            guard request == activationGeneration, selectedServer == server else { return }
-            if let user = status?.user {
-                authenticated(user)
-            } else {
-                phase = .login
+        for attempt in 0..<3 {
+            do {
+                let status = try await api?.status()
+                guard request == activationGeneration, selectedServer == server else { return }
+                if let user = status?.user {
+                    authenticated(user)
+                } else {
+                    phase = .login
+                }
+                return
+            } catch {
+                guard attempt < 2 else {
+                    guard request == activationGeneration, selectedServer == server else { return }
+                    errorMessage = error.localizedDescription
+                    phase = .login
+                    return
+                }
+                do {
+                    try await sleeper.sleep(for: .seconds([2, 5][attempt]))
+                } catch {
+                    return
+                }
             }
-        } catch {
-            guard request == activationGeneration, selectedServer == server else { return }
-            errorMessage = error.localizedDescription
-            phase = .login
         }
     }
 
@@ -66,14 +93,25 @@ final class AppSession {
         profile = nil
         phase = .loading
         let request = activate(server)
-        do {
-            let status = try await api?.status()
-            guard request == activationGeneration, selectedServer == server else { return }
-            if let user = status?.user { authenticated(user) } else { phase = .login }
-        } catch {
-            guard request == activationGeneration, selectedServer == server else { return }
-            errorMessage = error.localizedDescription
-            phase = .login
+        for attempt in 0..<3 {
+            do {
+                let status = try await api?.status()
+                guard request == activationGeneration, selectedServer == server else { return }
+                if let user = status?.user { authenticated(user) } else { phase = .login }
+                return
+            } catch {
+                guard attempt < 2 else {
+                    guard request == activationGeneration, selectedServer == server else { return }
+                    errorMessage = error.localizedDescription
+                    phase = .login
+                    return
+                }
+                do {
+                    try await sleeper.sleep(for: .seconds([2, 5][attempt]))
+                } catch {
+                    return
+                }
+            }
         }
     }
 

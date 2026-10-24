@@ -26,8 +26,18 @@ struct LoginView: View {
                         await model.pollLink()
                     }
                 }
-            } else {
+            } else if model.state == .requestingCode {
                 ProgressView("Création du code…")
+            } else {
+                VStack(spacing: 8) {
+                    Text("Impossible de joindre le serveur.")
+                        .foregroundStyle(.red)
+                    Button("Réessayer maintenant") {
+                        pollingTask?.cancel()
+                        pollingTask = Task { await model.retryLink() }
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
 
             Divider().frame(maxWidth: 440)

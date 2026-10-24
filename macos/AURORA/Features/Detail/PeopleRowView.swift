@@ -1,26 +1,30 @@
 import SwiftUI
 
+// Distribution en texte, façon générique : « Hiroyuki Sanada — Toranaga ».
 struct PeopleRowView: View {
     let people: [Person]
-    let images: ImageRepository
 
     var body: some View {
-        if !people.isEmpty {
+        let cast = people.filter { $0.role == "actor" }.prefix(10)
+        if !cast.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Distribution").font(.title2.bold())
+                Rectangle().fill(AuroraTheme.line).frame(height: 1)
+                Text("Distribution").font(AuroraTheme.serif(19, .semibold)).foregroundStyle(AuroraTheme.paper)
                 ScrollView(.horizontal) {
-                    LazyHStack(spacing: 18) {
-                        ForEach(people) { person in
-                            VStack(alignment: .leading, spacing: 8) {
-                                AuthenticatedImage(path: person.photo, repository: images)
-                                    .frame(width: 110, height: 140)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                Text(person.name).font(.callout.weight(.semibold)).lineLimit(1)
-                                Text(person.character ?? person.role).font(.caption).foregroundStyle(AuroraTheme.ash).lineLimit(1)
-                            }.frame(width: 110, alignment: .leading)
+                    HStack(alignment: .firstTextBaseline, spacing: 30) {
+                        ForEach(Array(cast)) { person in
+                            HStack(spacing: 4) {
+                                Text(person.name).foregroundStyle(AuroraTheme.paper.opacity(0.8))
+                                if let character = person.character, !character.isEmpty {
+                                    Text("— \(character)").italic().foregroundStyle(AuroraTheme.ash)
+                                }
+                            }
+                            .font(AuroraTheme.serif(14))
+                            .lineLimit(1)
                         }
                     }
-                }.scrollIndicators(.hidden)
+                }
+                .scrollIndicators(.hidden)
             }
         }
     }

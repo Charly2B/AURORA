@@ -10,11 +10,11 @@ struct TrackMenuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(kind == .audio ? "Audio" : "Sous-titres").font(.headline)
+                Text(kind == .audio ? "Audio" : "Sous-titres").font(AuroraTheme.serif(16, .semibold)).foregroundStyle(AuroraTheme.paper)
                 Spacer()
                 Button(action: onClose) { Image(systemName: "xmark") }.buttonStyle(.plain)
             }
-            Divider()
+            Rectangle().fill(AuroraTheme.line).frame(height: 1)
             if kind == .audio {
                 if coordinator.isDirect {
                     ForEach(coordinator.tracks.filter { $0.kind == .audio }) { track in
@@ -48,13 +48,23 @@ struct TrackMenuView: View {
         }
         .padding(16)
         .frame(width: 310, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(AuroraTheme.background.opacity(0.95), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(AuroraTheme.line))
+        .shadow(color: .black.opacity(0.5), radius: 24, y: 12)
     }
 
     private func trackButton(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack { Image(systemName: selected ? "checkmark.circle.fill" : "circle"); Text(label); Spacer() }
-        }.buttonStyle(.plain).padding(.vertical, 5)
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(AuroraTheme.accent).opacity(selected ? 1 : 0)
+                Text(label).foregroundStyle(selected ? AuroraTheme.paper : AuroraTheme.mist)
+                Spacer()
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 8).frame(height: 30)
+            .background(selected ? AuroraTheme.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 5))
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain)
     }
 
     private func audioLabel(_ track: AudioTrack) -> String {

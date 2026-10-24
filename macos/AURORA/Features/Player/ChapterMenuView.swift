@@ -7,8 +7,8 @@ struct ChapterMenuView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack { Text("Chapitres").font(.headline); Spacer(); Button(action: onClose) { Image(systemName: "xmark") }.buttonStyle(.plain) }
-            Divider()
+            HStack { Text("Chapitres").font(AuroraTheme.serif(16, .semibold)).foregroundStyle(AuroraTheme.paper); Spacer(); Button(action: onClose) { Image(systemName: "xmark") }.buttonStyle(.plain) }
+            Rectangle().fill(AuroraTheme.line).frame(height: 1)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(chapters) { chapter in
@@ -16,7 +16,7 @@ struct ChapterMenuView: View {
                             onSelect(chapter.start)
                             onClose()
                         } label: {
-                            HStack { Text(chapter.title.isEmpty ? "Chapitre" : chapter.title); Spacer(); Text(Self.clock(chapter.start)).monospacedDigit() }
+                            HStack { Text(chapter.title.isEmpty ? "Chapitre" : chapter.title); Spacer(); Text(Self.clock(chapter.start)).monospacedDigit().foregroundStyle(AuroraTheme.ash) }.font(.system(size: 13)).foregroundStyle(AuroraTheme.paper)
                         }.buttonStyle(.plain)
                     }
                 }
@@ -24,7 +24,9 @@ struct ChapterMenuView: View {
         }
         .padding(16)
         .frame(width: 350)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(AuroraTheme.background.opacity(0.95), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(AuroraTheme.line))
+        .shadow(color: .black.opacity(0.5), radius: 24, y: 12)
     }
 
     static func clock(_ seconds: Double) -> String {

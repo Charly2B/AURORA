@@ -7,15 +7,18 @@ struct MediaRowView: View {
     let wide: Bool
     let onOpen: (Card) -> Void
     var onHideContinue: ((Card) -> Void)? = nil
+    /// Carte entourée d'or (titre à la une de l'accueil).
+    var highlightedID: Int64? = nil
+    var onHover: ((Card?) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.title2.bold()).padding(.horizontal, 36)
+            Text(title).font(AuroraTheme.serif(19, .semibold)).foregroundStyle(AuroraTheme.paper).padding(.horizontal, 36)
             ScrollView(.horizontal) {
-                LazyHStack(alignment: .top, spacing: 18) {
+                LazyHStack(alignment: .top, spacing: 16) {
                     ForEach(cards) { card in
-                        MediaCardView(card: card, images: images, onOpen: { onOpen(card) }, wide: wide)
-                            .frame(width: wide ? 300 : 170)
+                        MediaCardView(card: card, images: images, onOpen: { onOpen(card) }, wide: wide, onAmbientHover: onHover, highlighted: card.id == highlightedID)
+                            .frame(width: wide ? 260 : 160)
                             .overlay(alignment: .topTrailing) {
                                 // Bouton visible pour retirer l'œuvre de « Continuer à regarder »
                                 // (le clic droit reste disponible en secours).
@@ -41,7 +44,7 @@ struct MediaRowView: View {
                             }
                     }
                 }
-                .padding(.horizontal, 36).padding(.bottom, 8)
+                .padding(.horizontal, 36).padding(.vertical, 6)
             }
             .scrollIndicators(.hidden)
         }

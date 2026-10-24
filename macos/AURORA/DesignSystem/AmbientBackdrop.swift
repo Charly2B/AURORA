@@ -1,7 +1,7 @@
 import SwiftUI
 
-// Fond « ambiance » des pages Films/Séries : backdrop d'une œuvre de la liste,
-// légèrement flouté et fondu en noir vers le bas pour rester lisible sous la grille.
+// Fond « ambiance » des pages Films/Séries : backdrop de l'œuvre survolée (sinon la première),
+// sur toute la page, flouté et assombri pour que la grille reste lisible.
 struct AmbientBackdrop: View {
     let card: Card?
     let images: ImageRepository
@@ -11,14 +11,13 @@ struct AmbientBackdrop: View {
             AuthenticatedImage(path: card?.backdrop ?? card?.thumb, repository: images)
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .scaleEffect(1.12) // cache les bords délavés du flou
-                .blur(radius: 14)
-                .opacity(0.8)
+                .blur(radius: 24)
                 .overlay(
                     LinearGradient(
                         stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: AuroraTheme.background.opacity(0.35), location: 0.55),
-                            .init(color: AuroraTheme.background, location: 0.97)
+                            .init(color: AuroraTheme.background.opacity(0.45), location: 0),
+                            .init(color: AuroraTheme.background.opacity(0.62), location: 0.5),
+                            .init(color: AuroraTheme.background.opacity(0.82), location: 1)
                         ],
                         startPoint: .top, endPoint: .bottom
                     )
@@ -26,6 +25,6 @@ struct AmbientBackdrop: View {
                 .clipped()
                 .allowsHitTesting(false)
         }
-        .frame(height: 440)
+        .ignoresSafeArea()
     }
 }

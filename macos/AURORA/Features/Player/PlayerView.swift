@@ -33,7 +33,7 @@ struct PlayerView: View {
                                 } else {
                                     TrackMenuView(coordinator: coordinator, kind: menu, onClose: { self.menu = nil })
                                 }
-                            }.padding(.trailing, 30).padding(.bottom, 92)
+                            }.padding(.trailing, 40).padding(.bottom, 132)
                         }
                     }
                 }

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct MainShellView: View {
@@ -17,6 +18,9 @@ struct MainShellView: View {
     @State private var profileModel: ProfileModel
     @State private var catalogGeneration = 0
     @State private var browseMemory = BrowseMemory()
+    // Largeur de la colonne de gauche, réglable à la souris et mémorisée (220…420 pt).
+    @AppStorage("sidebarWidth") private var sidebarWidth: Double = 280
+    @State private var dragStartWidth: Double?
 
     init(session: AppSession, api: any AuroraServing, server: ServerAddress, profile: UserProfile) {
         self.session = session
@@ -37,8 +41,7 @@ struct MainShellView: View {
     var body: some View {
         NavigationStack(path: $path) {
             HStack(spacing: 0) {
-                sidebar
-                Divider()
+                sidebar.zIndex(1)
                 tabContent
             }
             .background(AuroraTheme.background)
@@ -58,28 +61,153 @@ struct MainShellView: View {
         }
     }
 
+    // Colonne « Cinémathèque » : Recherche en champ (⌘F), Parcourir avec compteurs,
+    // En cours (3 premières reprises), Profil + serveur en pied. L'ordre des onglets reste celui de MainTab.
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("AURORA").font(.title2.bold()).padding(.horizontal, 12).padding(.bottom, 20)
-            ForEach(MainTab.allCases) { tab in
-                Button {
-                    path.removeAll()
-                    selectedTab = tab
-                } label: {
-                    Label(tab.label, systemImage: tab.symbol)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 12).padding(.vertical, 9)
-                        .background(selectedTab == tab ? AuroraTheme.elevated : .clear, in: RoundedRectangle(cornerRadius: 9))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(tab.label)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("AURORA").font(AuroraTheme.serif(23, .semibold)).tracking(1.8).foregroundStyle(AuroraTheme.paper)
+                Rectangle().fill(AuroraTheme.accent).frame(width: 30, height: 1).padding(.vertical, 8)
+                Text("CINÉMATHÈQUE PRIVÉE").font(.system(size: 9.5, weight: .medium)).tracking(1.5).foregroundStyle(AuroraTheme.ash)
             }
-            Spacer()
-            Text(server.url.host ?? server.origin).font(.caption).foregroundStyle(AuroraTheme.ash).padding(12)
+            .padding(.leading, 10).padding(.top, 14).padding(.bottom, 20)
+
+            Button { select(.search) } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                    Text("Rechercher")
+                    Spacer()
+                    Text("⌘F").font(.system(size: 11, weight: .medium)).opacity(0.75)
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(selectedTab == .search ? AuroraTheme.paper : AuroraTheme.ash)
+                .padding(.horizontal, 10).frame(height: 32)
+                .background(AuroraTheme.panel, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(selectedTab == .search ? AuroraTheme.accent.opacity(0.6) : AuroraTheme.line))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut("f", modifiers: .command)
+            .accessibilityLabel("Rechercher")
+            .padding(.bottom, 20)
+
+            AuroraEyebrow(text: "Parcourir", color: AuroraTheme.ash).padding(.leading, 10).padding(.bottom, 7)
+            navItem(.home, count: nil)
+            navItem(.movies, count: homeModel.movieCount)
+            navItem(.series, count: homeModel.seriesCount)
+
+            if !homeModel.continueItems.isEmpty {
+                AuroraEyebrow(text: "En cours", color: AuroraTheme.ash).padding(.leading, 10).padding(.top, 20).padding(.bottom, 5)
+                ForEach(homeModel.continueItems.prefix(3)) { card in
+                    Button { open(card) } label: { inProgressRow(card) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Reprendre \(card.seriesTitle ?? card.title)")
+                }
+            }
+
+            Spacer(minLength: 12)
+
+            Divider().overlay(AuroraTheme.line)
+            Button { select(.profile) } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "person")
+                        .frame(width: 32, height: 32)
+                        .foregroundStyle(AuroraTheme.accent)
+                        .overlay(Circle().strokeBorder(AuroraTheme.accent.opacity(0.5)))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Profil").font(AuroraTheme.serif(14)).foregroundStyle(AuroraTheme.paper)
+                        HStack(spacing: 6) {
+                            Circle().fill(AuroraTheme.green).frame(width: 6, height: 6)
+                            Text(server.url.host ?? server.origin).lineLimit(1)
+                        }
+                        .font(.system(size: 11)).foregroundStyle(AuroraTheme.ash)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "gearshape").foregroundStyle(selectedTab == .profile ? AuroraTheme.accent : AuroraTheme.ash)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 12)
+            .accessibilityLabel("Profil et réglages")
         }
-        .padding(12)
-        .frame(width: 190)
-        .background(Color(white: 0.035))
+        .padding(14)
+        .frame(width: sidebarWidth)
+        .background(AuroraTheme.sidebar)
+        .overlay(alignment: .trailing) { resizeHandle }
+    }
+
+    /// Bord droit de la colonne : filet doré, zone de saisie de 8 pt, curseur ↔.
+    private var resizeHandle: some View {
+        Rectangle().fill(AuroraTheme.line).frame(width: 1)
+            .frame(width: 8)
+            .contentShape(Rectangle())
+            .offset(x: 4)
+            .onHover { inside in inside ? NSCursor.resizeLeftRight.push() : NSCursor.pop() }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { value in
+                        let start = dragStartWidth ?? sidebarWidth
+                        dragStartWidth = start
+                        sidebarWidth = min(max(start + value.translation.width, 220), 420)
+                    }
+                    .onEnded { _ in dragStartWidth = nil }
+            )
+            .help("Glisser pour élargir la colonne")
+    }
+
+    private func select(_ tab: MainTab) {
+        path.removeAll()
+        selectedTab = tab
+    }
+
+    private func navItem(_ tab: MainTab, count: Int?) -> some View {
+        let selected = selectedTab == tab && path.isEmpty
+        return Button { select(tab) } label: {
+            HStack(spacing: 11) {
+                Image(systemName: tab.symbol).font(.system(size: 14)).frame(width: 18)
+                    .foregroundStyle(selected ? AuroraTheme.accent : AuroraTheme.ash)
+                Text(tab.label).font(AuroraTheme.serif(16))
+                Spacer()
+                if let count, count > 0 {
+                    Text("\(count)").font(.system(size: 12)).monospacedDigit().foregroundStyle(AuroraTheme.ash)
+                }
+            }
+            .foregroundStyle(selected ? AuroraTheme.paper : AuroraTheme.mist)
+            .padding(.horizontal, 10).frame(height: 36)
+            .background {
+                if selected {
+                    LinearGradient(colors: [AuroraTheme.accent.opacity(0.17), AuroraTheme.accent.opacity(0.03)], startPoint: .leading, endPoint: .trailing)
+                        .overlay(alignment: .leading) { Rectangle().fill(AuroraTheme.accent).frame(width: 2) }
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 2)
+        .accessibilityLabel(tab.label)
+    }
+
+    private func inProgressRow(_ card: Card) -> some View {
+        HStack(spacing: 10) {
+            AuthenticatedImage(path: card.backdrop ?? card.thumb, repository: images)
+                .frame(width: 46, height: 26)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(card.seriesTitle ?? card.title).font(AuroraTheme.serif(13)).foregroundStyle(AuroraTheme.paper.opacity(0.8)).lineLimit(1)
+                Text(AuroraFormat.episodeCode(card) ?? AuroraFormat.remaining(card) ?? "").font(.system(size: 11)).foregroundStyle(AuroraTheme.ash).lineLimit(1)
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Rectangle().fill(AuroraTheme.accent.opacity(0.2))
+                        Rectangle().fill(AuroraTheme.accent).frame(width: proxy.size.width * card.progress)
+                    }
+                }
+                .frame(height: 2)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder

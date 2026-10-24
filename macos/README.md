@@ -2,6 +2,18 @@
 
 Client natif du serveur multimédia AURORA, à parité avec AURORA TV et avec libmpv intégré.
 
+## Interface
+
+Direction « Cinémathèque » : brun très sombre, crème et or, titres en serif système (New York), affiches en grand.
+
+- Colonne de gauche (280 pt par défaut, réglable à la souris de 220 à 420 pt en tirant son bord droit, largeur mémorisée) : Recherche (⌘F), Parcourir avec le nombre de films et de séries, En cours (3 reprises), Profil et serveur en pied.
+- Accueil : titre « À la une » tiré au hasard dans toute la bibliothèque à l’ouverture (affiche, réalisateur ou créateurs, acteurs, résumé) ; il suit le survol des affiches.
+- Films/Séries : dossiers et tri dans deux barres sombres au filet doré (`AuroraSegmentBar`), lisibles sur n’importe quel fond ; l’image floue du titre survolé couvre tout le fond de la page.
+- Fiche : saisons dans la même barre, épisodes en rangée avec coche « vu », épisode à reprendre entouré d’or, distribution en texte.
+- Lecteur : barre dorée avec repères de chapitres, menus audio/sous-titres/chapitres assortis.
+
+Palette et styles : `AURORA/DesignSystem/AuroraTheme.swift`.
+
 ## Développement
 
 ```bash

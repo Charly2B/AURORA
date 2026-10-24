@@ -25,26 +25,29 @@ struct LibraryView: View {
             AmbientBackdrop(card: ambientCard ?? featuredCard, images: images)
             VStack(spacing: 0) {
             ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    ForEach(model.libraries) { library in
-                        Button(library.name) {
-                            grouped = false
-                            model.selectedLibraryID = library.id
-                            saveMemory()
-                            Task { await model.loadSelected() }
-                        }.buttonStyle(AuroraChipStyle(selected: !grouped && model.selectedLibraryID == library.id))
+                HStack(spacing: 14) {
+                    AuroraSegmentBar {
+                        ForEach(model.libraries) { library in
+                            Button(library.name) {
+                                grouped = false
+                                model.selectedLibraryID = library.id
+                                saveMemory()
+                                Task { await model.loadSelected() }
+                            }.buttonStyle(AuroraSegmentStyle(selected: !grouped && model.selectedLibraryID == library.id))
+                        }
+                        if model.libraries.count > 1 {
+                            Button("Tous les dossiers") { grouped = true; saveMemory(); Task { await model.loadGrouped() } }
+                                .buttonStyle(AuroraSegmentStyle(selected: grouped))
+                        }
                     }
-                    if model.libraries.count > 1 {
-                        Button("Tous les dossiers") { grouped = true; saveMemory(); Task { await model.loadGrouped() } }
-                            .buttonStyle(AuroraChipStyle(selected: grouped))
-                    }
-                    Divider().frame(height: 26)
-                    ForEach(LibrarySort.available(for: model.kind), id: \.self) { sort in
-                        Button(sort.label) {
-                            model.sort = sort
-                            saveMemory()
-                            Task { grouped ? await model.loadGrouped() : await model.loadSelected() }
-                        }.buttonStyle(AuroraChipStyle(selected: model.sort == sort))
+                    AuroraSegmentBar {
+                        ForEach(LibrarySort.available(for: model.kind), id: \.self) { sort in
+                            Button(sort.label) {
+                                model.sort = sort
+                                saveMemory()
+                                Task { grouped ? await model.loadGrouped() : await model.loadSelected() }
+                            }.buttonStyle(AuroraSegmentStyle(selected: model.sort == sort))
+                        }
                     }
                 }.padding(.horizontal, 36).padding(.vertical, 12)
             }.scrollIndicators(.hidden)

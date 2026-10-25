@@ -18,6 +18,8 @@ struct MainShellView: View {
     @State private var profileModel: ProfileModel
     @State private var catalogGeneration = 0
     @State private var browseMemory = BrowseMemory()
+    @State private var moviesExpanded = true
+    @State private var seriesExpanded = true
     @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
 
@@ -97,15 +99,22 @@ struct MainShellView: View {
             .accessibilityLabel("Rechercher")
             .padding(.bottom, 20)
 
-            AuroraEyebrow(text: "Parcourir", color: AuroraTheme.ash).padding(.leading, 10).padding(.bottom, 7)
             navItem(.home, count: nil)
-            navItem(.movies, count: homeModel.movieCount)
-            ForEach(moviesModel.libraries) { library in
-                libraryNavItem(library, kind: .movie)
+            navItem(.movies, count: homeModel.movieCount) {
+                moviesExpanded.toggle()
             }
-            navItem(.series, count: homeModel.seriesCount)
-            ForEach(seriesModel.libraries) { library in
-                libraryNavItem(library, kind: .series)
+            if moviesExpanded {
+                ForEach(moviesModel.libraries) { library in
+                    libraryNavItem(library, kind: .movie)
+                }
+            }
+            navItem(.series, count: homeModel.seriesCount) {
+                seriesExpanded.toggle()
+            }
+            if seriesExpanded {
+                ForEach(seriesModel.libraries) { library in
+                    libraryNavItem(library, kind: .series)
+                }
             }
 
             Spacer(minLength: 12)
@@ -181,14 +190,24 @@ struct MainShellView: View {
         selectedTab = tab
     }
 
-    private func navItem(_ tab: MainTab, count: Int?) -> some View {
+    private func navItem(_ tab: MainTab, count: Int?, onClick: (() -> Void)? = nil) -> some View {
         let selected = selectedTab == tab && path.isEmpty
-        return Button { select(tab) } label: {
+        let expandable = tab == .movies || tab == .series
+        let expanded = tab == .movies ? moviesExpanded : seriesExpanded
+        return Button {
+            select(tab)
+            onClick?()
+        } label: {
             HStack(spacing: 11) {
                 Image(systemName: tab.symbol).font(.system(size: 14)).frame(width: 18)
                     .foregroundStyle(selected ? AuroraTheme.accent : AuroraTheme.ash)
                 Text(tab.label).font(AuroraTheme.serif(16))
                 Spacer()
+                if expandable {
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AuroraTheme.ash)
+                }
                 if let count, count > 0 {
                     Text("\(count)").font(.system(size: 12)).monospacedDigit().foregroundStyle(AuroraTheme.ash)
                 }

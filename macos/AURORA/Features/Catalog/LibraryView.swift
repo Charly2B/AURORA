@@ -30,7 +30,7 @@ struct LibraryView: View {
             }.scrollIndicators(.hidden)
 
             ScrollView {
-                if grouped {
+                if model.isGrouped {
                     LazyVStack(spacing: 28) {
                         ForEach(model.folders.filter { !$0.items.isEmpty }) { folder in
                             FolderPanelView(folder: folder, kind: model.kind, images: images, onOpen: open)

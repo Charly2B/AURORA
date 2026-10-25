@@ -15,6 +15,7 @@ final class LibraryModel {
     private(set) var items: [Card] = []
     private(set) var folders: [FolderContent] = []
     private(set) var state: CatalogLoadState = .idle
+    var isGrouped: Bool { grouped }
 
     init(api: any AuroraServing, origin: String, kind: MediaKind) {
         self.api = api
@@ -27,6 +28,7 @@ final class LibraryModel {
         generation += 1
         self.api = api
         self.origin = origin
+        grouped = false
         libraries = []
         items = []
         folders = []

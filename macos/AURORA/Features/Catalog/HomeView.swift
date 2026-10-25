@@ -7,11 +7,13 @@ enum HomePresentation {
 
 struct HomeView: View {
     @Bindable var model: HomeModel
+    @AppStorage(HomeBackgroundStore.homeTitleSizeKey) private var titleSizeSetting = 64.0
+    @AppStorage(HomeBackgroundStore.homeTitleFontKey) private var titleFont = "sfPro"
 
     var body: some View {
         GeometryReader { geometry in
             Text(HomePresentation.title)
-                .font(.system(size: titleSize(for: geometry.size.width), weight: .light))
+                .font(homeTitleFont(size: titleSize(for: geometry.size.width)))
                 .tracking(6)
                 .foregroundStyle(.white)
                 .lineLimit(1)
@@ -27,6 +29,16 @@ struct HomeView: View {
     }
 
     private func titleSize(for width: CGFloat) -> CGFloat {
-        min(max(width * 0.055, 28), 64)
+        min(CGFloat(titleSizeSetting), max(width - 72, 28))
+    }
+
+    private func homeTitleFont(size: CGFloat) -> Font {
+        switch titleFont {
+        case "helvetica": return .custom("Helvetica Neue", size: size)
+        case "avenir": return .custom("Avenir Next", size: size)
+        case "newYork": return .system(size: size, weight: .regular, design: .serif)
+        case "menlo": return .system(size: size, weight: .regular, design: .monospaced)
+        default: return .system(size: size, weight: .light)
+        }
     }
 }

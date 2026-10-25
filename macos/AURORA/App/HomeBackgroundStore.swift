@@ -4,8 +4,8 @@ import Foundation
 enum HomeBackgroundStore {
     static let pathKey = "aurora.homeBackgroundPath"
     static let revisionKey = "aurora.homeBackgroundRevision"
-    static let mastheadSizeKey = "aurora.mastheadSize"
-    static let mastheadStyleKey = "aurora.mastheadStyle"
+    static let homeTitleSizeKey = "aurora.homeTitleSize"
+    static let homeTitleFontKey = "aurora.homeTitleFont"
 
     static var directory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

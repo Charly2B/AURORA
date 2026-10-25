@@ -9,8 +9,8 @@ struct ProfileView: View {
     let onLogout: () -> Void
     @AppStorage(HomeBackgroundStore.pathKey) private var backgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
-    @AppStorage(HomeBackgroundStore.mastheadSizeKey) private var mastheadSize = 18.0
-    @AppStorage(HomeBackgroundStore.mastheadStyleKey) private var mastheadStyle = "light"
+    @AppStorage(HomeBackgroundStore.homeTitleSizeKey) private var homeTitleSize = 64.0
+    @AppStorage(HomeBackgroundStore.homeTitleFontKey) private var homeTitleFont = "sfPro"
     @State private var backgroundError: String?
 
     var body: some View {
@@ -30,21 +30,22 @@ struct ProfileView: View {
                 Button("Déconnexion", role: .destructive, action: onLogout)
             }.buttonStyle(.bordered)
             VStack(alignment: .leading, spacing: 12) {
-                Text("Titre de la médiathèque").font(.headline)
+                Text("Titre de la page d’accueil").font(.headline)
                 Text("MEDIATHEQUE AURORA")
-                    .font(mastheadFont)
+                    .font(homeTitleFont(size: 28))
                     .tracking(2.8)
                 HStack {
                     Text("Taille")
-                    Slider(value: $mastheadSize, in: 12...30, step: 1)
+                    Slider(value: $homeTitleSize, in: 28...110, step: 1)
                         .frame(width: 220)
-                    Text("\(Int(mastheadSize)) pt").monospacedDigit().foregroundStyle(AuroraTheme.ash)
+                    Text("\(Int(homeTitleSize)) pt").monospacedDigit().foregroundStyle(AuroraTheme.ash)
                 }
-                Picker("Format", selection: $mastheadStyle) {
-                    Text("Sans léger").tag("light")
-                    Text("Sans").tag("regular")
-                    Text("Serif").tag("serif")
-                    Text("Gras").tag("bold")
+                Picker("Police", selection: $homeTitleFont) {
+                    Text("SF Pro").tag("sfPro")
+                    Text("Helvetica").tag("helvetica")
+                    Text("Avenir").tag("avenir")
+                    Text("New York").tag("newYork")
+                    Text("Menlo").tag("menlo")
                 }
                 .pickerStyle(.segmented)
                 HStack {
@@ -63,12 +64,13 @@ struct ProfileView: View {
         .task { await model.load() }
     }
 
-    private var mastheadFont: Font {
-        switch mastheadStyle {
-        case "regular": return .system(size: mastheadSize, weight: .regular)
-        case "serif": return .system(size: mastheadSize, weight: .regular, design: .serif)
-        case "bold": return .system(size: mastheadSize, weight: .bold)
-        default: return .system(size: mastheadSize, weight: .light)
+    private func homeTitleFont(size: CGFloat) -> Font {
+        switch homeTitleFont {
+        case "helvetica": return .custom("Helvetica Neue", size: size)
+        case "avenir": return .custom("Avenir Next", size: size)
+        case "newYork": return .system(size: size, weight: .regular, design: .serif)
+        case "menlo": return .system(size: size, weight: .regular, design: .monospaced)
+        default: return .system(size: size, weight: .light)
         }
     }
 

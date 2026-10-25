@@ -4,8 +4,8 @@ import SwiftUI
 struct AppearanceSettingsView: View {
     @AppStorage(HomeBackgroundStore.pathKey) private var backgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
-    @AppStorage(HomeBackgroundStore.mastheadSizeKey) private var mastheadSize = 18.0
-    @AppStorage(HomeBackgroundStore.mastheadStyleKey) private var mastheadStyle = "light"
+    @AppStorage(HomeBackgroundStore.homeTitleSizeKey) private var mastheadSize = 64.0
+    @AppStorage(HomeBackgroundStore.homeTitleFontKey) private var mastheadStyle = "sfPro"
     @State private var errorMessage: String?
 
     var body: some View {
@@ -39,7 +39,7 @@ struct AppearanceSettingsView: View {
             .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Titre de la médiathèque")
+                Text("Titre de la page d’accueil")
                     .font(.headline)
                 Text("MEDIATHEQUE AURORA")
                     .font(mastheadFont)
@@ -51,14 +51,15 @@ struct AppearanceSettingsView: View {
                 Slider(value: $mastheadSize, in: 12...30, step: 1)
                     .accessibilityLabel("Taille du titre de la médiathèque")
                 Picker("Style", selection: $mastheadStyle) {
-                    Text("Sans léger").tag("light")
-                    Text("Sans").tag("regular")
-                    Text("Serif").tag("serif")
-                    Text("Gras").tag("bold")
+                    Text("SF Pro").tag("sfPro")
+                    Text("Helvetica").tag("helvetica")
+                    Text("Avenir").tag("avenir")
+                    Text("New York").tag("newYork")
+                    Text("Menlo").tag("menlo")
                 }
                 Button("Réinitialiser le titre") {
-                    mastheadSize = 18
-                    mastheadStyle = "light"
+                    mastheadSize = 64
+                    mastheadStyle = "sfPro"
                 }
             }
             .padding(16)
@@ -121,9 +122,10 @@ struct AppearanceSettingsView: View {
 
     private var mastheadFont: Font {
         switch mastheadStyle {
-        case "regular": return .system(size: mastheadSize, weight: .regular)
-        case "serif": return .system(size: mastheadSize, weight: .regular, design: .serif)
-        case "bold": return .system(size: mastheadSize, weight: .bold)
+        case "helvetica": return .custom("Helvetica Neue", size: mastheadSize)
+        case "avenir": return .custom("Avenir Next", size: mastheadSize)
+        case "newYork": return .system(size: mastheadSize, weight: .regular, design: .serif)
+        case "menlo": return .system(size: mastheadSize, weight: .regular, design: .monospaced)
         default: return .system(size: mastheadSize, weight: .light)
         }
     }

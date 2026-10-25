@@ -20,8 +20,6 @@ struct MainShellView: View {
     @State private var browseMemory = BrowseMemory()
     @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
-    @AppStorage(HomeBackgroundStore.mastheadSizeKey) private var mastheadSize = 18.0
-    @AppStorage(HomeBackgroundStore.mastheadStyleKey) private var mastheadStyle = "light"
 
     init(session: AppSession, api: any AuroraServing, server: ServerAddress, profile: UserProfile) {
         self.session = session
@@ -72,7 +70,7 @@ struct MainShellView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("MEDIATHEQUE\nAURORA")
-                    .font(mastheadFont)
+                    .font(.system(size: 18, weight: .light))
                     .tracking(2.8)
                     .lineSpacing(3)
                     .foregroundStyle(AuroraTheme.paper)
@@ -175,15 +173,6 @@ struct MainShellView: View {
     private func select(_ tab: MainTab) {
         path.removeAll()
         selectedTab = tab
-    }
-
-    private var mastheadFont: Font {
-        switch mastheadStyle {
-        case "regular": return .system(size: mastheadSize, weight: .regular)
-        case "serif": return AuroraTheme.serif(mastheadSize, .regular)
-        case "bold": return .system(size: mastheadSize, weight: .bold)
-        default: return .system(size: mastheadSize, weight: .light)
-        }
     }
 
     private func navItem(_ tab: MainTab, count: Int?) -> some View {

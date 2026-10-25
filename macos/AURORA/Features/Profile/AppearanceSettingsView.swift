@@ -4,6 +4,8 @@ import SwiftUI
 struct AppearanceSettingsView: View {
     @AppStorage(HomeBackgroundStore.pathKey) private var backgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
+    @AppStorage(HomeBackgroundStore.mastheadSizeKey) private var mastheadSize = 18.0
+    @AppStorage(HomeBackgroundStore.mastheadStyleKey) private var mastheadStyle = "light"
     @State private var errorMessage: String?
 
     var body: some View {
@@ -32,6 +34,32 @@ struct AppearanceSettingsView: View {
                 Text("L’image est conservée localement sur ce Mac et utilisée comme fond de l’accueil.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Titre de la médiathèque")
+                    .font(.headline)
+                Text("MEDIATHEQUE AURORA")
+                    .font(mastheadFont)
+                    .tracking(2.8)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                LabeledContent("Taille", value: "\(Int(mastheadSize)) pt")
+                Slider(value: $mastheadSize, in: 12...30, step: 1)
+                    .accessibilityLabel("Taille du titre de la médiathèque")
+                Picker("Style", selection: $mastheadStyle) {
+                    Text("Sans léger").tag("light")
+                    Text("Sans").tag("regular")
+                    Text("Serif").tag("serif")
+                    Text("Gras").tag("bold")
+                }
+                Button("Réinitialiser le titre") {
+                    mastheadSize = 18
+                    mastheadStyle = "light"
+                }
             }
             .padding(16)
             .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
@@ -88,6 +116,15 @@ struct AppearanceSettingsView: View {
             errorMessage = nil
         } catch {
             errorMessage = "Impossible d’enregistrer cette image : \(error.localizedDescription)"
+        }
+    }
+
+    private var mastheadFont: Font {
+        switch mastheadStyle {
+        case "regular": return .system(size: mastheadSize, weight: .regular)
+        case "serif": return .system(size: mastheadSize, weight: .regular, design: .serif)
+        case "bold": return .system(size: mastheadSize, weight: .bold)
+        default: return .system(size: mastheadSize, weight: .light)
         }
     }
 }

@@ -4,6 +4,7 @@ struct ProfileView: View {
     @Bindable var model: ProfileModel
     let onSwitchServer: () -> Void
     let onAddServer: () -> Void
+    let onChooseBackground: () -> Void
     let onLogout: () -> Void
 
     var body: some View {
@@ -19,6 +20,7 @@ struct ProfileView: View {
             HStack(spacing: 12) {
                 Button("Changer de NAS", action: onSwitchServer)
                 Button("Ajouter un NAS", action: onAddServer)
+                Button("Choisir une image de fond…", action: onChooseBackground)
                 Button("Déconnexion", role: .destructive, action: onLogout)
             }.buttonStyle(.bordered)
             Spacer()

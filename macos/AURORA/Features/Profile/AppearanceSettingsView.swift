@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @AppStorage(HomeBackgroundStore.pathKey) private var backgroundPath = ""
+    @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
     @State private var errorMessage: String?
 
     var body: some View {
@@ -23,6 +24,7 @@ struct AppearanceSettingsView: View {
                         Button("Réinitialiser") {
                             HomeBackgroundStore.removeImage(at: backgroundPath)
                             backgroundPath = ""
+                            backgroundRevision += 1
                         }
                     }
                 }
@@ -82,6 +84,7 @@ struct AppearanceSettingsView: View {
         guard panel.runModal() == .OK, let source = panel.url else { return }
         do {
             backgroundPath = try HomeBackgroundStore.copyImage(from: source).path
+            backgroundRevision += 1
             errorMessage = nil
         } catch {
             errorMessage = "Impossible d’enregistrer cette image : \(error.localizedDescription)"

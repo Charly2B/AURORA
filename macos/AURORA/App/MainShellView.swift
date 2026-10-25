@@ -19,6 +19,7 @@ struct MainShellView: View {
     @State private var catalogGeneration = 0
     @State private var browseMemory = BrowseMemory()
     @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
+    @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
 
     init(session: AppSession, api: any AuroraServing, server: ServerAddress, profile: UserProfile) {
         self.session = session
@@ -131,7 +132,7 @@ struct MainShellView: View {
         .frame(width: 280, alignment: .leading)
         .clipped()
         .background {
-            if showsLandingBackground {
+            if showsMediaBackground {
                 Color.black.opacity(0.58)
             } else {
                 AuroraTheme.sidebar
@@ -141,10 +142,11 @@ struct MainShellView: View {
 
     @ViewBuilder
     private var shellBackground: some View {
-        if showsLandingBackground {
+        if showsMediaBackground {
             Group {
                 if !customBackgroundPath.isEmpty {
                     HomeBackgroundView(path: customBackgroundPath)
+                        .id(backgroundRevision)
                 } else {
                     GeometryReader { geometry in
                         Image("MediathequeAuroraBackdrop")
@@ -164,8 +166,8 @@ struct MainShellView: View {
         }
     }
 
-    private var showsLandingBackground: Bool {
-        selectedTab == .home && path.isEmpty
+    private var showsMediaBackground: Bool {
+        [.home, .movies, .series].contains(selectedTab) && path.isEmpty
     }
 
     private func select(_ tab: MainTab) {

@@ -40,11 +40,15 @@ struct MainShellView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            HStack(spacing: 0) {
-                sidebar.zIndex(1)
-                tabContent
+            ZStack {
+                shellBackground
+
+                HStack(spacing: 0) {
+                    sidebar.zIndex(1)
+                    tabContent
+                }
             }
-            .background(AuroraTheme.background)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .foregroundStyle(AuroraTheme.paper)
             .navigationDestination(for: AppRoute.self) { route in
                 destination(route).id(route.identity)
@@ -62,13 +66,16 @@ struct MainShellView: View {
     }
 
     // Colonne « Cinémathèque » : Recherche en champ (⌘F), Parcourir avec compteurs,
-    // En cours (3 premières reprises), Profil + serveur en pied. L'ordre des onglets reste celui de MainTab.
+    // Profil + serveur en pied. L'ordre des onglets reste celui de MainTab.
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("AURORA").font(AuroraTheme.serif(23, .semibold)).tracking(1.8).foregroundStyle(AuroraTheme.paper)
+                Text("MEDIATHEQUE\nAURORA")
+                    .font(.system(size: 18, weight: .light))
+                    .tracking(2.8)
+                    .lineSpacing(3)
+                    .foregroundStyle(AuroraTheme.paper)
                 Rectangle().fill(AuroraTheme.accent).frame(width: 30, height: 1).padding(.vertical, 8)
-                Text("CINÉMATHÈQUE PRIVÉE").font(.system(size: 9.5, weight: .medium)).tracking(1.5).foregroundStyle(AuroraTheme.ash)
             }
             .padding(.leading, 10).padding(.top, 14).padding(.bottom, 20)
 
@@ -95,15 +102,6 @@ struct MainShellView: View {
             navItem(.home, count: nil)
             navItem(.movies, count: homeModel.movieCount)
             navItem(.series, count: homeModel.seriesCount)
-
-            if !homeModel.continueItems.isEmpty {
-                AuroraEyebrow(text: "En cours", color: AuroraTheme.ash).padding(.leading, 10).padding(.top, 20).padding(.bottom, 5)
-                ForEach(homeModel.continueItems.prefix(3)) { card in
-                    Button { open(card) } label: { inProgressRow(card) }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Reprendre \(card.seriesTitle ?? card.title)")
-                }
-            }
 
             Spacer(minLength: 12)
 
@@ -133,8 +131,37 @@ struct MainShellView: View {
         }
         .padding(14)
         .frame(width: sidebarWidth)
-        .background(AuroraTheme.sidebar)
+        .background {
+            if showsLandingBackground {
+                Color.black.opacity(0.58)
+            } else {
+                AuroraTheme.sidebar
+            }
+        }
         .overlay(alignment: .trailing) { resizeHandle }
+    }
+
+    @ViewBuilder
+    private var shellBackground: some View {
+        if showsLandingBackground {
+            GeometryReader { geometry in
+                Image("MediathequeAuroraBackdrop")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                    .overlay(Color.black.opacity(0.12))
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        } else {
+            AuroraTheme.background
+                .ignoresSafeArea()
+        }
+    }
+
+    private var showsLandingBackground: Bool {
+        selectedTab == .home && path.isEmpty
     }
 
     /// Bord droit de la colonne : filet doré, zone de saisie de 8 pt, curseur ↔.
@@ -189,32 +216,11 @@ struct MainShellView: View {
         .accessibilityLabel(tab.label)
     }
 
-    private func inProgressRow(_ card: Card) -> some View {
-        HStack(spacing: 10) {
-            AuthenticatedImage(path: card.backdrop ?? card.thumb, repository: images)
-                .frame(width: 46, height: 26)
-                .clipShape(RoundedRectangle(cornerRadius: 3))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(card.seriesTitle ?? card.title).font(AuroraTheme.serif(13)).foregroundStyle(AuroraTheme.paper.opacity(0.8)).lineLimit(1)
-                Text(AuroraFormat.episodeCode(card) ?? AuroraFormat.remaining(card) ?? "").font(.system(size: 11)).foregroundStyle(AuroraTheme.ash).lineLimit(1)
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Rectangle().fill(AuroraTheme.accent.opacity(0.2))
-                        Rectangle().fill(AuroraTheme.accent).frame(width: proxy.size.width * card.progress)
-                    }
-                }
-                .frame(height: 2)
-            }
-        }
-        .padding(.horizontal, 10).padding(.vertical, 5)
-        .contentShape(Rectangle())
-    }
-
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
         case .home:
-            HomeView(model: homeModel, images: images, onOpen: open, onPlay: play, onHideContinue: hideContinue)
+            HomeView(model: homeModel)
         case .movies:
             LibraryView(model: moviesModel, images: images, onOpen: open, memory: browseMemory, origin: server.origin, tab: .movies)
         case .series:

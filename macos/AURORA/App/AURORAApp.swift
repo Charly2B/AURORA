@@ -10,6 +10,9 @@ struct AURORAApp: App {
         }
         .defaultSize(width: 1280, height: 800)
         .windowResizability(.contentMinSize)
+        Settings {
+            AppearanceSettingsView()
+        }
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Plein écran") { NSApp.keyWindow?.toggleFullScreen(nil) }
@@ -18,4 +21,3 @@ struct AURORAApp: App {
         }
     }
 }
-

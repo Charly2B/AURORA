@@ -95,6 +95,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/collections/{id}", u(s.handleCollection))
 	mux.Handle("GET /api/v1/search", u(s.handleSearch))
 	mux.Handle("GET /api/v1/img/{name}", u(s.handleImage))
+	mux.Handle("GET /api/v1/backgrounds", u(s.handleBackgrounds))
+	mux.Handle("GET /api/v1/backgrounds/{name}", u(s.handleBackground))
 	mux.Handle("POST /api/v1/play", u(s.handlePlay))
 	mux.Handle("GET /api/v1/files/{id}/stream", u(s.handleDirectStream))
 	// Lien signé et temporaire : lecteurs externes (VLC sur la box) qui ne transmettent pas la session.

@@ -255,6 +255,46 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request, u *auth.Us
 }
 
 var imageName = regexp.MustCompile(`^[0-9a-f]{40}\.(jpg|jpeg|png|webp)$`)
+var backgroundName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.(jpg|jpeg|png|webp)$`)
+
+// handleBackgrounds liste les photos déposées dans data/backgrounds.
+// Ce dossier est volontairement séparé des partages vidéo et n'est jamais analysé.
+func (s *Server) handleBackgrounds(w http.ResponseWriter, r *http.Request, u *auth.User) {
+	directory := filepath.Join(s.Cfg.DataDir, "backgrounds")
+	entries, err := os.ReadDir(directory)
+	if err != nil && !os.IsNotExist(err) {
+		fail(w, r, err)
+		return
+	}
+	type background struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	items := make([]background, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !backgroundName.MatchString(entry.Name()) {
+			continue
+		}
+		items = append(items, background{Name: entry.Name(), Path: "/api/v1/backgrounds/" + entry.Name()})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// handleBackground sert une photo de fond déposée dans le dossier dédié.
+func (s *Server) handleBackground(w http.ResponseWriter, r *http.Request, u *auth.User) {
+	name := r.PathValue("name")
+	if !backgroundName.MatchString(name) {
+		http.NotFound(w, r)
+		return
+	}
+	p := filepath.Join(s.Cfg.DataDir, "backgrounds", name)
+	if _, err := os.Stat(p); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	http.ServeFile(w, r, p)
+}
 
 // handleImage sert une image du cache local (affiches, fonds, portraits). Le nom est contraint par motif.
 func (s *Server) handleImage(w http.ResponseWriter, r *http.Request, u *auth.User) {

@@ -20,6 +20,9 @@ struct MainShellView: View {
     @State private var browseMemory = BrowseMemory()
     @State private var moviesExpanded = true
     @State private var seriesExpanded = true
+    @State private var draggingMovieID: Int64?
+    @State private var draggingSeriesID: Int64?
+    @State private var libraryOrderRevision = 0
     @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
 
@@ -104,8 +107,8 @@ struct MainShellView: View {
                 moviesExpanded.toggle()
             }
             if moviesExpanded {
-                ForEach(moviesModel.libraries) { library in
-                    libraryNavItem(library, kind: .movie)
+                ForEach(orderedLibraries(moviesModel.libraries, kind: .movie)) { library in
+                    libraryNavItem(library, kind: .movie, draggingID: $draggingMovieID)
                 }
                 allLibrariesNavItem(kind: .movie)
             }
@@ -113,8 +116,8 @@ struct MainShellView: View {
                 seriesExpanded.toggle()
             }
             if seriesExpanded {
-                ForEach(seriesModel.libraries) { library in
-                    libraryNavItem(library, kind: .series)
+                ForEach(orderedLibraries(seriesModel.libraries, kind: .series)) { library in
+                    libraryNavItem(library, kind: .series, draggingID: $draggingSeriesID)
                 }
                 allLibrariesNavItem(kind: .series)
             }
@@ -230,7 +233,7 @@ struct MainShellView: View {
         .accessibilityLabel(tab.label)
     }
 
-    private func libraryNavItem(_ library: LibraryRef, kind: MediaKind) -> some View {
+    private func libraryNavItem(_ library: LibraryRef, kind: MediaKind, draggingID: Binding<Int64?>) -> some View {
         let selected: Bool
         if kind == .movie {
             selected = selectedTab == .movies && moviesModel.selectedLibraryID == library.id && path.isEmpty
@@ -251,6 +254,9 @@ struct MainShellView: View {
             }
         } label: {
             HStack(spacing: 8) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 10))
+                    .foregroundStyle(AuroraTheme.ash)
                 Text(library.name)
                     .font(.system(size: 12))
                     .lineLimit(1)
@@ -270,7 +276,30 @@ struct MainShellView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .opacity(draggingID.wrappedValue == library.id ? 0.45 : 1)
+        .onDrag {
+            draggingID.wrappedValue = library.id
+            return NSItemProvider(object: String(library.id) as NSString)
+        }
+        .onDrop(of: [.text], isTargeted: nil) { _, _ in
+            guard let sourceID = draggingID.wrappedValue else { return false }
+            LibraryOrderStore.move(
+                sourceID: sourceID,
+                before: library.id,
+                libraries: kind == .movie ? moviesModel.libraries : seriesModel.libraries,
+                origin: server.origin,
+                kind: kind
+            )
+            draggingID.wrappedValue = nil
+            libraryOrderRevision += 1
+            return true
+        }
         .accessibilityLabel("\(kind.title), \(library.name)")
+    }
+
+    private func orderedLibraries(_ libraries: [LibraryRef], kind: MediaKind) -> [LibraryRef] {
+        _ = libraryOrderRevision
+        return LibraryOrderStore.ordered(libraries, origin: server.origin, kind: kind)
     }
 
     private func allLibrariesNavItem(kind: MediaKind) -> some View {

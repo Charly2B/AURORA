@@ -50,8 +50,10 @@ type Server struct {
 	// TMDBBase / TMDBImages : surchargés par les tests (faux serveur TMDB) ; vides = TMDB réel.
 	TMDBBase, TMDBImages string
 
-	streamKeyOnce sync.Once
-	streamKey     []byte // clé des liens de lecture signés (régénérée à chaque démarrage)
+	streamKeyOnce  sync.Once
+	streamKey      []byte // clé des liens de lecture signés (régénérée à chaque démarrage)
+	backgroundOnce sync.Once
+	backgroundGate chan struct{} // un import à la fois, attente annulable avant lecture du corps
 
 	links linkStore // associations d'appareils par code en attente (link.go)
 
@@ -96,7 +98,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/search", u(s.handleSearch))
 	mux.Handle("GET /api/v1/img/{name}", u(s.handleImage))
 	mux.Handle("GET /api/v1/backgrounds", u(s.handleBackgrounds))
-	mux.Handle("GET /api/v1/backgrounds/{name}", u(s.handleBackground))
+	mux.Handle("GET /api/v1/backgrounds/{id}/image", u(s.handleBackgroundImage))
 	mux.Handle("POST /api/v1/play", u(s.handlePlay))
 	mux.Handle("GET /api/v1/files/{id}/stream", u(s.handleDirectStream))
 	// Lien signé et temporaire : lecteurs externes (VLC sur la box) qui ne transmettent pas la session.
@@ -126,6 +128,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/admin/items/{id}", a(s.handleEditItem))
 	mux.Handle("GET /api/v1/admin/items/{id}/artwork", a(s.handleArtworkList))
 	mux.Handle("POST /api/v1/admin/items/{id}/artwork", a(s.handleArtworkSet))
+	mux.Handle("POST /api/v1/admin/backgrounds", a(s.handleUploadBackground))
 	mux.Handle("GET /api/v1/admin/users", a(s.handleUsers))
 	mux.Handle("POST /api/v1/admin/users", a(s.handleCreateUser))
 	mux.Handle("PUT /api/v1/admin/users/{id}", a(s.handleUpdateUser))

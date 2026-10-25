@@ -20,6 +20,7 @@ struct MainShellView: View {
     @State private var browseMemory = BrowseMemory()
     // Largeur de la colonne de gauche, réglable à la souris et mémorisée (220…420 pt).
     @AppStorage("sidebarWidth") private var sidebarWidth: Double = 280
+    @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
     @State private var dragStartWidth: Double?
 
     init(session: AppSession, api: any AuroraServing, server: ServerAddress, profile: UserProfile) {
@@ -130,7 +131,8 @@ struct MainShellView: View {
             .accessibilityLabel("Profil et réglages")
         }
         .padding(14)
-        .frame(width: sidebarWidth)
+        .frame(width: CGFloat(sidebarWidth), alignment: .leading)
+        .clipped()
         .background {
             if showsLandingBackground {
                 Color.black.opacity(0.58)
@@ -144,15 +146,21 @@ struct MainShellView: View {
     @ViewBuilder
     private var shellBackground: some View {
         if showsLandingBackground {
-            GeometryReader { geometry in
-                Image("MediathequeAuroraBackdrop")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                    .overlay(Color.black.opacity(0.12))
+            Group {
+                if !customBackgroundPath.isEmpty {
+                    HomeBackgroundView(path: customBackgroundPath)
+                } else {
+                    GeometryReader { geometry in
+                        Image("MediathequeAuroraBackdrop")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                            .overlay(Color.black.opacity(0.12))
+                    }
+                    .ignoresSafeArea()
+                }
             }
-            .ignoresSafeArea()
             .allowsHitTesting(false)
         } else {
             AuroraTheme.background

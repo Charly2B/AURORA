@@ -100,7 +100,13 @@ struct MainShellView: View {
             AuroraEyebrow(text: "Parcourir", color: AuroraTheme.ash).padding(.leading, 10).padding(.bottom, 7)
             navItem(.home, count: nil)
             navItem(.movies, count: homeModel.movieCount)
+            ForEach(moviesModel.libraries) { library in
+                libraryNavItem(library, kind: .movie)
+            }
             navItem(.series, count: homeModel.seriesCount)
+            ForEach(seriesModel.libraries) { library in
+                libraryNavItem(library, kind: .series)
+            }
 
             Spacer(minLength: 12)
 
@@ -201,6 +207,49 @@ struct MainShellView: View {
         .buttonStyle(.plain)
         .padding(.bottom, 2)
         .accessibilityLabel(tab.label)
+    }
+
+    private func libraryNavItem(_ library: LibraryRef, kind: MediaKind) -> some View {
+        let selected: Bool
+        if kind == .movie {
+            selected = selectedTab == .movies && moviesModel.selectedLibraryID == library.id && path.isEmpty
+        } else {
+            selected = selectedTab == .series && seriesModel.selectedLibraryID == library.id && path.isEmpty
+        }
+        let count = kind == .movie ? library.movies : library.series
+
+        return Button {
+            path.removeAll()
+            selectedTab = kind == .movie ? .movies : .series
+            if kind == .movie {
+                moviesModel.selectedLibraryID = library.id
+                Task { await moviesModel.loadSelected() }
+            } else {
+                seriesModel.selectedLibraryID = library.id
+                Task { await seriesModel.loadSelected() }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text(library.name)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .foregroundStyle(AuroraTheme.ash)
+                }
+            }
+            .foregroundStyle(selected ? AuroraTheme.paper : AuroraTheme.mist)
+            .padding(.leading, 40)
+            .padding(.trailing, 10)
+            .frame(height: 28, alignment: .leading)
+            .background(selected ? AuroraTheme.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 5))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(kind.title), \(library.name)")
     }
 
     @ViewBuilder

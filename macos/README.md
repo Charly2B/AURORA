@@ -9,7 +9,7 @@ Direction « Cinémathèque » : brun très sombre, crème et or, titres en seri
 - Colonne de gauche (280 pt par défaut, réglable à la souris de 220 à 420 pt en tirant son bord droit, largeur mémorisée) : Recherche (⌘F), Parcourir avec le nombre de films et de séries, En cours (3 reprises), Profil et serveur en pied.
 - Accueil : titre « À la une » tiré au hasard dans toute la bibliothèque à l’ouverture (affiche, réalisateur ou créateurs, acteurs, résumé) ; il suit le survol des affiches.
 - Films/Séries : dossiers et tri dans deux barres sombres au filet doré (`AuroraSegmentBar`), lisibles sur n’importe quel fond ; l’image floue du titre survolé couvre tout le fond de la page.
-- Fiche : saisons dans la même barre, épisodes en rangée avec coche « vu », épisode à reprendre entouré d’or, distribution en texte.
+- Fiche : saisons dans la même barre, épisodes en liste verticale (vignette à gauche, résumé sur 3 lignes à droite) ; pas de bouton « Vu » en tête des séries (il reste sur les films) ; « vu » se règle comme sur Plex : « ⋯ » en bas à droite de la vignette (visible au survol) ou clic droit → Vu / Pas vu, l’état actuel coché. Pas vu = vignette sans repère, vu = coche verte (`AuroraTheme.seen`, aussi sur les affiches). Épisode à reprendre entouré d’or, distribution en texte.
 - Lecteur : barre dorée avec repères de chapitres, menus audio/sous-titres/chapitres assortis.
 
 Palette et styles : `AURORA/DesignSystem/AuroraTheme.swift`.

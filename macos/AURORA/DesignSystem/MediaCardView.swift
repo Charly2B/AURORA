@@ -35,9 +35,9 @@ struct MediaCardView: View {
                     if card.watched {
                         Image(systemName: "checkmark")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(AuroraTheme.ink)
+                            .foregroundStyle(.white)
                             .frame(width: 22, height: 22)
-                            .background(AuroraTheme.accent, in: Circle())
+                            .background(AuroraTheme.seen, in: Circle())
                             .padding(7)
                     } else if let count = card.unwatched, count > 0 {
                         Text("\(count)").font(.caption.bold()).foregroundStyle(AuroraTheme.ink)

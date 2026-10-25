@@ -16,8 +16,11 @@ struct MediaActionsView: View {
                             .buttonStyle(AuroraGhostButtonStyle())
                     }
                 }
-                Button { Task { await model.setWatched(!detail.state.watched) } } label: {
-                    Label(detail.state.watched ? "Non vu" : "Vu", systemImage: detail.state.watched ? "eye.slash" : "checkmark")
+                // Série : « vu » se règle par épisode (menu « ⋯ »), pas de bouton global (demande du 2026-10-25).
+                if detail.kind != "series" {
+                    Button { Task { await model.setWatched(!detail.state.watched) } } label: {
+                        Label(detail.state.watched ? "Non vu" : "Vu", systemImage: detail.state.watched ? "eye.slash" : "checkmark")
+                    }
                 }
                 Button { Task { await model.toggleWatchlist() } } label: {
                     Image(systemName: detail.state.watchlist ? "text.badge.checkmark" : "text.badge.plus")

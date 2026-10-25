@@ -24,16 +24,13 @@ struct SeasonEpisodesView: View {
                     }
                 }
 
-                ScrollView(.horizontal) {
-                    LazyHStack(alignment: .top, spacing: 16) {
-                        ForEach(model.episodes) { episode in
-                            episodeCard(episode, current: episode.id == currentID)
-                        }
+                // Liste verticale (la fiche défile déjà) : vignette à gauche, résumé à droite.
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(model.episodes) { episode in
+                        EpisodeCardView(model: model, episode: episode, current: episode.id == currentID, images: images, onPlay: onPlay)
                     }
-                    .padding(.vertical, 6).padding(.horizontal, 4)
                 }
-                .scrollIndicators(.hidden)
-                .padding(.horizontal, -4)
+                .padding(.horizontal, -8)
                 .overlay { LoadingStateView(state: model.episodesState, emptyMessage: "Aucun épisode.") }
             }
         }
@@ -43,14 +40,22 @@ struct SeasonEpisodesView: View {
     private var currentID: Int64? {
         (model.episodes.first { ($0.position ?? 0) > 0 && !$0.watched } ?? model.episodes.first { !$0.watched })?.id
     }
+}
 
-    // Zone de lecture et zone « vu » séparées : un clic sur la carte lance la lecture,
-    // seul le bouton ✓ bascule l'état vu.
-    private func episodeCard(_ episode: Card, current: Bool) -> some View {
-        Button {
-            onPlay(PlayIntent(itemID: episode.id, fileID: nil, startPosition: episode.watched ? 0 : episode.position ?? 0, restart: false))
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
+// Une ligne d'épisode, à la manière de Plex : un clic lance la lecture ; « vu » se règle par le menu « ⋯ »
+// (bas droite, visible au survol) ou le clic droit. Pas vu = vignette sans repère, vu = coche verte.
+private struct EpisodeCardView: View {
+    @Bindable var model: DetailModel
+    let episode: Card
+    let current: Bool
+    let images: ImageRepository
+    let onPlay: (PlayIntent) -> Void
+
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: play) {
+            HStack(alignment: .top, spacing: 20) {
                 AuthenticatedImage(path: episode.thumb ?? episode.backdrop, repository: images)
                     .frame(width: 250, height: 141)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -62,48 +67,92 @@ struct SeasonEpisodesView: View {
                                     Capsule().fill(AuroraTheme.accent).frame(width: proxy.size.width * episode.progress)
                                 }
                             }
-                            .frame(height: 3).padding(.horizontal, 9).padding(.bottom, 8)
+                            // Marge droite : laisse la place au bouton « ⋯ ».
+                            .frame(height: 3).padding(.leading, 9).padding(.trailing, 42).padding(.bottom, 8)
+                        }
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if episode.watched {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 22, height: 22)
+                                .background(AuroraTheme.seen, in: Circle())
+                                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                                .padding(7)
+                                .accessibilityLabel("Vu")
                         }
                     }
                     .overlay {
                         if current { RoundedRectangle(cornerRadius: 5).strokeBorder(AuroraTheme.accent, lineWidth: 2).padding(-3) }
                     }
-                    .padding(.bottom, 6)
-                Text("Épisode \(episode.episode ?? 0)".uppercased()).font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(AuroraTheme.ash)
-                Text(episode.title).font(AuroraTheme.serif(15)).foregroundStyle(AuroraTheme.paper).lineLimit(2)
-                Text([AuroraFormat.runtime(minutes: episode.runtime), episode.watched ? nil : AuroraFormat.remaining(episode)].compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 12)).foregroundStyle(AuroraTheme.mist)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Épisode \(episode.episode ?? 0)".uppercased()).font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(AuroraTheme.ash)
+                    Text(episode.title).font(AuroraTheme.serif(16)).foregroundStyle(AuroraTheme.paper).lineLimit(2)
+                    if let overview = episode.overview, !overview.isEmpty {
+                        Text(overview)
+                            .font(.system(size: 13)).lineSpacing(2)
+                            .foregroundStyle(AuroraTheme.paper.opacity(0.75))
+                            .lineLimit(3)
+                            .frame(maxWidth: 620, alignment: .leading)
+                            .padding(.top, 2)
+                    }
+                    Text([AuroraFormat.runtime(minutes: episode.runtime), episode.watched ? nil : AuroraFormat.remaining(episode)].compactMap { $0 }.joined(separator: " · "))
+                        .font(.system(size: 12)).foregroundStyle(AuroraTheme.mist)
+                        .padding(.top, 2)
+                }
+                .padding(.top, 4)
+                Spacer(minLength: 0)
             }
-            .frame(width: 250, alignment: .leading)
+            .padding(8)
+            .background(hovered ? AuroraTheme.panel : .clear, in: RoundedRectangle(cornerRadius: 8))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .overlay(alignment: .topTrailing) {
-            Button {
-                Task { await model.setEpisodeWatched(episode, watched: !episode.watched) }
-            } label: {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(episode.watched ? AuroraTheme.ink : AuroraTheme.paper.opacity(0.8))
-                    .frame(width: 24, height: 24)
-                    .background(episode.watched ? AnyShapeStyle(AuroraTheme.accent) : AnyShapeStyle(.black.opacity(0.45)), in: Circle())
-                    .padding(7)
+        .overlay(alignment: .topLeading) {
+            // Bouton « ⋯ » posé sur le coin bas droit de la vignette (250 × 141 pt, marge de ligne 8 pt).
+            Menu { watchedChoices } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(AuroraTheme.paper)
+                    .frame(width: 26, height: 26)
+                    .background(.black.opacity(0.6), in: Circle())
+                    .overlay(Circle().strokeBorder(AuroraTheme.paper.opacity(0.28)))
+                    .contentShape(Circle())
             }
+            .menuStyle(.button)
             .buttonStyle(.plain)
-            .help(episode.watched ? "Marquer comme non vu" : "Marquer comme vu")
-            .accessibilityLabel(episode.watched ? "Marquer \(episode.title) comme non vu" : "Marquer \(episode.title) comme vu")
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .padding(.leading, 8 + 250 - 26 - 7).padding(.top, 8 + 141 - 26 - 7)
+            .opacity(hovered ? 1 : 0)
+            .help("Vu ou pas vu")
+            .accessibilityLabel("Options de \(episode.title)")
         }
+        .onHover { hovered = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovered)
         .contextMenu {
-            Button {
-                Task { await model.setEpisodeWatched(episode, watched: !episode.watched) }
-            } label: {
-                Label(episode.watched ? "Marquer comme non vu" : "Marquer comme vu", systemImage: episode.watched ? "eye.slash" : "eye")
-            }
+            watchedChoices
             Divider()
-            Button("Lire") {
-                onPlay(PlayIntent(itemID: episode.id, fileID: nil, startPosition: episode.watched ? 0 : episode.position ?? 0, restart: false))
-            }
+            Button("Lire", action: play)
         }
-        .help(episode.overview ?? episode.title)
+        .help(episode.title)
+    }
+
+    /// « Vu » / « Pas vu » : l'état actuel est coché (cases à cocher natives du menu macOS).
+    @ViewBuilder private var watchedChoices: some View {
+        SwiftUI.Section("Épisode \(episode.episode ?? 0)") {
+            Toggle("Vu", isOn: Binding(get: { episode.watched }, set: { if $0 { setWatched(true) } }))
+            Toggle("Pas vu", isOn: Binding(get: { !episode.watched }, set: { if $0 { setWatched(false) } }))
+        }
+    }
+
+    private func setWatched(_ watched: Bool) {
+        guard watched != episode.watched else { return }
+        Task { await model.setEpisodeWatched(episode, watched: watched) }
+    }
+
+    private func play() {
+        onPlay(PlayIntent(itemID: episode.id, fileID: nil, startPosition: episode.watched ? 0 : episode.position ?? 0, restart: false))
     }
 }

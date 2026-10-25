@@ -14,8 +14,10 @@ enum AuroraTheme {
     static let line = accent.opacity(0.16)
     static let buttonFill = Color(red: 0.945, green: 0.894, blue: 0.800)   // #F1E4CC
     static let ink = Color(red: 0.102, green: 0.078, blue: 0.059)          // texte sur crème
-    // Point « serveur connecté » ; les coches « vu » utilisent l'or.
+    // Point « serveur connecté ».
     static let green = Color(red: 0.56, green: 0.79, blue: 0.56)
+    /// Coche « vu » (épisodes, affiches) : vert franc, comme Plex.
+    static let seen = Color(red: 0.30, green: 0.78, blue: 0.42)
 
     private static let cream = Color(red: 0.957, green: 0.918, blue: 0.847) // #F4EAD8
 

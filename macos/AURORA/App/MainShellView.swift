@@ -107,6 +107,7 @@ struct MainShellView: View {
                 ForEach(moviesModel.libraries) { library in
                     libraryNavItem(library, kind: .movie)
                 }
+                allLibrariesNavItem(kind: .movie)
             }
             navItem(.series, count: homeModel.seriesCount) {
                 seriesExpanded.toggle()
@@ -115,6 +116,7 @@ struct MainShellView: View {
                 ForEach(seriesModel.libraries) { library in
                     libraryNavItem(library, kind: .series)
                 }
+                allLibrariesNavItem(kind: .series)
             }
 
             Spacer(minLength: 12)
@@ -269,6 +271,38 @@ struct MainShellView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(kind.title), \(library.name)")
+    }
+
+    private func allLibrariesNavItem(kind: MediaKind) -> some View {
+        let selected = path.isEmpty && ((kind == .movie && selectedTab == .movies && moviesModel.selectedLibraryID == nil) ||
+                                        (kind == .series && selectedTab == .series && seriesModel.selectedLibraryID == nil))
+        return Button {
+            path.removeAll()
+            selectedTab = kind == .movie ? .movies : .series
+            if kind == .movie {
+                moviesModel.selectedLibraryID = nil
+                Task { await moviesModel.loadGrouped() }
+            } else {
+                seriesModel.selectedLibraryID = nil
+                Task { await seriesModel.loadGrouped() }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 10))
+                Text("Tous les dossiers")
+                    .font(.system(size: 12))
+                Spacer()
+            }
+            .foregroundStyle(selected ? AuroraTheme.paper : AuroraTheme.mist)
+            .padding(.leading, 40)
+            .padding(.trailing, 10)
+            .frame(height: 28, alignment: .leading)
+            .background(selected ? AuroraTheme.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 5))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(kind.title), tous les dossiers")
     }
 
     @ViewBuilder

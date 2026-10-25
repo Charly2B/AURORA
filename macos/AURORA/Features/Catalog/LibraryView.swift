@@ -18,20 +18,6 @@ struct LibraryView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 14) {
                     AuroraSegmentBar {
-                        ForEach(model.libraries) { library in
-                            Button(library.name) {
-                                grouped = false
-                                model.selectedLibraryID = library.id
-                                saveMemory()
-                                Task { await model.loadSelected() }
-                            }.buttonStyle(AuroraSegmentStyle(selected: !grouped && model.selectedLibraryID == library.id))
-                        }
-                        if model.libraries.count > 1 {
-                            Button("Tous les dossiers") { grouped = true; saveMemory(); Task { await model.loadGrouped() } }
-                                .buttonStyle(AuroraSegmentStyle(selected: grouped))
-                        }
-                    }
-                    AuroraSegmentBar {
                         ForEach(LibrarySort.available(for: model.kind), id: \.self) { sort in
                             Button(sort.label) {
                                 model.sort = sort

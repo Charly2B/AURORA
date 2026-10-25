@@ -18,10 +18,7 @@ struct MainShellView: View {
     @State private var profileModel: ProfileModel
     @State private var catalogGeneration = 0
     @State private var browseMemory = BrowseMemory()
-    // Largeur de la colonne de gauche, réglable à la souris et mémorisée (220…420 pt).
-    @AppStorage("sidebarWidth") private var sidebarWidth: Double = 280
     @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
-    @State private var dragStartWidth: Double?
 
     init(session: AppSession, api: any AuroraServing, server: ServerAddress, profile: UserProfile) {
         self.session = session
@@ -131,7 +128,7 @@ struct MainShellView: View {
             .accessibilityLabel("Profil et réglages")
         }
         .padding(14)
-        .frame(width: CGFloat(sidebarWidth), alignment: .leading)
+        .frame(width: 280, alignment: .leading)
         .clipped()
         .background {
             if showsLandingBackground {
@@ -140,7 +137,6 @@ struct MainShellView: View {
                 AuroraTheme.sidebar
             }
         }
-        .overlay(alignment: .trailing) { resizeHandle }
     }
 
     @ViewBuilder
@@ -170,25 +166,6 @@ struct MainShellView: View {
 
     private var showsLandingBackground: Bool {
         selectedTab == .home && path.isEmpty
-    }
-
-    /// Bord droit de la colonne : filet doré, zone de saisie de 8 pt, curseur ↔.
-    private var resizeHandle: some View {
-        Rectangle().fill(AuroraTheme.line).frame(width: 1)
-            .frame(width: 8)
-            .contentShape(Rectangle())
-            .offset(x: 4)
-            .onHover { inside in inside ? NSCursor.resizeLeftRight.push() : NSCursor.pop() }
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .onChanged { value in
-                        let start = dragStartWidth ?? sidebarWidth
-                        dragStartWidth = start
-                        sidebarWidth = min(max(start + value.translation.width, 220), 420)
-                    }
-                    .onEnded { _ in dragStartWidth = nil }
-            )
-            .help("Glisser pour élargir la colonne")
     }
 
     private func select(_ tab: MainTab) {

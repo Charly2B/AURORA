@@ -5,6 +5,7 @@ struct SearchView: View {
     let images: ImageRepository
     let onOpen: (Card) -> Void
     @State private var searchTask: Task<Void, Never>?
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -12,6 +13,7 @@ struct SearchView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 640)
                 .padding(.horizontal, 36)
+                .focused($searchFocused)
                 .onChange(of: model.query) { _, query in
                     searchTask?.cancel()
                     searchTask = Task {
@@ -34,5 +36,11 @@ struct SearchView: View {
             .overlay { LoadingStateView(state: model.state, emptyMessage: model.prompt) }
         }
         .padding(.top, 12)
+        .task {
+            searchFocused = true
+        }
+        .onDisappear {
+            searchTask?.cancel()
+        }
     }
 }

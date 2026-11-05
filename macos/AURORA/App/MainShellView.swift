@@ -83,25 +83,6 @@ struct MainShellView: View {
             }
             .padding(.leading, 10).padding(.top, 14).padding(.bottom, 20)
 
-            Button { select(.search) } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                    Text("Rechercher")
-                    Spacer()
-                    Text("⌘F").font(.system(size: 11, weight: .medium)).opacity(0.75)
-                }
-                .font(.system(size: 13))
-                .foregroundStyle(selectedTab == .search ? AuroraTheme.paper : AuroraTheme.ash)
-                .padding(.horizontal, 10).frame(height: 32)
-                .background(AuroraTheme.panel, in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(selectedTab == .search ? AuroraTheme.accent.opacity(0.6) : AuroraTheme.line))
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut("f", modifiers: .command)
-            .accessibilityLabel("Rechercher")
-            .padding(.bottom, 20)
-
             navItem(.home, count: nil)
             navItem(.movies, count: homeModel.movieCount) {
                 moviesExpanded.toggle()

@@ -9,19 +9,25 @@ struct SearchView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            TextField("Un film, une série, un acteur…", text: $model.query)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 640)
-                .padding(.horizontal, 36)
-                .focused($searchFocused)
-                .onChange(of: model.query) { _, query in
-                    searchTask?.cancel()
-                    searchTask = Task {
-                        try? await Task.sleep(for: .milliseconds(300))
-                        guard !Task.isCancelled else { return }
-                        await model.search(query)
+            HStack(spacing: 10) {
+                TextField("Un film, une série, un acteur…", text: $model.query)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($searchFocused)
+                    .onSubmit { runSearch() }
+                    .onChange(of: model.query) { _, query in
+                        searchTask?.cancel()
+                        searchTask = Task {
+                            try? await Task.sleep(for: .milliseconds(300))
+                            guard !Task.isCancelled else { return }
+                            await model.search(query)
+                        }
                     }
-                }
+                Button("Rechercher") { runSearch() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)
+            }
+            .frame(maxWidth: 720)
+            .padding(.horizontal, 36)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
                     if let label = model.fuzzyLabel { Text(label).foregroundStyle(AuroraTheme.ash).padding(.horizontal, 36) }
@@ -42,5 +48,11 @@ struct SearchView: View {
         .onDisappear {
             searchTask?.cancel()
         }
+    }
+
+    private func runSearch() {
+        searchTask?.cancel()
+        let query = model.query
+        searchTask = Task { await model.search(query) }
     }
 }

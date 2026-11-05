@@ -23,6 +23,9 @@ struct MainShellView: View {
     @State private var draggingMovieID: Int64?
     @State private var draggingSeriesID: Int64?
     @State private var libraryOrderRevision = 0
+    @State private var searchQuery = ""
+    @State private var searchTask: Task<Void, Never>?
+    @FocusState private var searchFieldFocused: Bool
     @AppStorage(HomeBackgroundStore.pathKey) private var customBackgroundPath = ""
     @AppStorage(HomeBackgroundStore.revisionKey) private var backgroundRevision = 0
 
@@ -49,7 +52,10 @@ struct MainShellView: View {
 
                 HStack(spacing: 0) {
                     sidebar.zIndex(1)
-                    tabContent
+                    VStack(spacing: 0) {
+                        persistentSearchField
+                        tabContent
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -67,6 +73,41 @@ struct MainShellView: View {
                 if update.isTerminal { refreshCatalogs() }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .auroraSearchRequested)) { _ in
+            searchFieldFocused = true
+        }
+        .onDisappear { searchTask?.cancel() }
+    }
+
+    private var persistentSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(AuroraTheme.ash)
+            TextField("Un film, une série, un acteur…", text: $searchQuery)
+                .textFieldStyle(.roundedBorder)
+                .focused($searchFieldFocused)
+                .onSubmit { runPersistentSearch() }
+                .onChange(of: searchQuery) { _, query in
+                    searchTask?.cancel()
+                    guard query.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 else { return }
+                    searchTask = Task {
+                        try? await Task.sleep(for: .milliseconds(300))
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run { runPersistentSearch() }
+                    }
+                }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 12)
+        .background(AuroraTheme.sidebar.opacity(0.72))
+        .overlay(alignment: .bottom) { Rectangle().fill(AuroraTheme.line).frame(height: 1) }
+    }
+
+    private func runPersistentSearch() {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2 else { return }
+        selectedTab = .search
+        Task { await searchModel.search(query) }
     }
 
     // Colonne « Cinémathèque » : Recherche en champ (⌘F), Parcourir avec compteurs,
@@ -325,7 +366,7 @@ struct MainShellView: View {
         case .series:
             LibraryView(model: seriesModel, images: images, onOpen: open, memory: browseMemory, origin: server.origin, tab: .series)
         case .search:
-            SearchView(model: searchModel, images: images, onOpen: open)
+            SearchView(model: searchModel, images: images, onOpen: open, showsSearchField: false)
         case .profile:
             ProfileView(
                 model: profileModel,

@@ -4,12 +4,14 @@ struct SearchView: View {
     @Bindable var model: SearchModel
     let images: ImageRepository
     let onOpen: (Card) -> Void
+    var showsSearchField = true
     @State private var searchTask: Task<Void, Never>?
     @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 10) {
+            if showsSearchField {
+                HStack(spacing: 10) {
                 TextField("Un film, une série, un acteur…", text: $model.query)
                     .textFieldStyle(.roundedBorder)
                     .focused($searchFocused)
@@ -25,9 +27,10 @@ struct SearchView: View {
                 Button("Rechercher") { runSearch() }
                     .buttonStyle(.borderedProminent)
                     .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)
+                }
+                .frame(maxWidth: 720)
+                .padding(.horizontal, 36)
             }
-            .frame(maxWidth: 720)
-            .padding(.horizontal, 36)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
                     if let label = model.fuzzyLabel { Text(label).foregroundStyle(AuroraTheme.ash).padding(.horizontal, 36) }

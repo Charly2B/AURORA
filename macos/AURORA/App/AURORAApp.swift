@@ -18,6 +18,12 @@ struct AURORAApp: App {
                 Button("Plein écran") { NSApp.keyWindow?.toggleFullScreen(nil) }
                     .keyboardShortcut("f", modifiers: [.command, .control])
             }
+            CommandGroup(after: .textEditing) {
+                Button("Rechercher") {
+                    NotificationCenter.default.post(name: .auroraSearchRequested, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
         }
     }
 }

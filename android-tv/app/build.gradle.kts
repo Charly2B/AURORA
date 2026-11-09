@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.androidx.tv.foundation)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.documentfile)
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.datasource)
     implementation(libs.androidx.media3.exoplayer)

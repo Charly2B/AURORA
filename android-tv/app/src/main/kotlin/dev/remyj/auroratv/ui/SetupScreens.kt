@@ -4,6 +4,7 @@ import android.provider.Settings
 import android.os.Build
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,11 +51,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.tv.material3.Border
+import dev.remyj.auroratv.data.Server
 import dev.remyj.auroratv.data.normalizeAddress
 import dev.remyj.auroratv.ui.components.ActionButton
 import dev.remyj.auroratv.ui.theme.Aurora
@@ -85,9 +88,19 @@ fun Stage(content: @Composable () -> Unit) {
 
 @Composable
 fun ServersScreen(vm: AppViewModel) {
-    val servers = remember { vm.servers }
+    val servers = vm.servers
+    var pendingRemoval by remember { mutableStateOf<Server?>(null) }
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    // Aussi après un retrait : le bouton du dialogue et la ligne supprimée disparaissent, il faut une cible.
+    LaunchedEffect(servers) { runCatching { first.requestFocus() } }
+    // Confirmation : le bouton « Retirer » est voisin de la carte, une flèche de trop le déclenchait.
+    pendingRemoval?.let { target ->
+        RemoveServerDialog(
+            server = target,
+            onConfirm = { vm.removeServer(target); pendingRemoval = null },
+            onDismiss = { pendingRemoval = null },
+        )
+    }
     Stage {
         Text("Vos Synology", color = Aurora.Paper, fontFamily = Aurora.Display, fontSize = 44.sp)
         Text("Choisissez le NAS à ouvrir.", color = Aurora.Ash, fontSize = 18.sp, modifier = Modifier.padding(top = 8.dp, bottom = 28.dp))
@@ -111,7 +124,7 @@ fun ServersScreen(vm: AppViewModel) {
                         }
                     }
                     Spacer(Modifier.width(12.dp))
-                    ActionButton("Retirer", onClick = { vm.removeServer(s) })
+                    ActionButton("Retirer", onClick = { pendingRemoval = s })
                 }
             }
             item {
@@ -120,6 +133,31 @@ fun ServersScreen(vm: AppViewModel) {
                     "+  Ajouter un Synology", primary = true, onClick = { vm.push(Screen.AddServer) },
                     modifier = if (servers.isEmpty()) Modifier.focusRequester(first) else Modifier,
                 )
+            }
+        }
+    }
+}
+
+/** Confirmation de retrait : le focus part sur « Annuler », jamais sur l'action destructrice. */
+@Composable
+private fun RemoveServerDialog(server: Server, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val cancel = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.width(440.dp).background(Aurora.Coal, RoundedCornerShape(12.dp))
+                .border(1.dp, Aurora.Line, RoundedCornerShape(12.dp)).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text("Retirer ce Synology ?", color = Aurora.Paper, fontFamily = Aurora.Display, fontSize = 24.sp)
+            Text(
+                "« ${server.name} » (${server.baseUrl}) sera retiré de cette TV. La médiathèque du NAS n'est pas modifiée ; vous pourrez le rajouter par son adresse.",
+                color = Aurora.Mist, fontSize = 15.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Annuler d'abord, et focalisé : une flèche de trop ne doit pas retirer un NAS.
+                ActionButton("Annuler", onClick = onDismiss, modifier = Modifier.focusRequester(cancel))
+                ActionButton("Retirer", onClick = onConfirm)
             }
         }
     }

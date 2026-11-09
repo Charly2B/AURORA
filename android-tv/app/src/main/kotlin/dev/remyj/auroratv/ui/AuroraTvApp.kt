@@ -15,7 +15,7 @@ fun AuroraTvApp(vm: AppViewModel) {
     val screen = vm.screen
     // Actif seulement s'il reste où revenir : sinon Retour doit quitter l'app (comportement Android TV).
     val canGoBack = vm.canGoBack || (screen is Screen.Main && vm.tab != Tab.HOME)
-    if (screen !is Screen.Player) {
+    if (screen !is Screen.Player && screen !is Screen.UsbPlayer) {
         BackHandler(enabled = canGoBack) {
             if (!vm.back() && screen is Screen.Main && vm.tab != Tab.HOME) vm.tab = Tab.HOME
         }
@@ -46,6 +46,7 @@ fun AuroraTvApp(vm: AppViewModel) {
                     Screen.Main -> MainScreen(vm)
                     is Screen.Detail -> DetailScreen(vm, screen)
                     is Screen.Player -> PlayerScreen(vm, screen)
+                    is Screen.UsbPlayer -> UsbPlayerScreen(vm, screen)
                 }
             }
         }

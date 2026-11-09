@@ -3,6 +3,9 @@ package dev.remyj.auroratv.net
 import kotlinx.serialization.Serializable
 
 // Modèles de l'API AURORA (/api/v1). Champs facultatifs par défaut : le serveur omet les valeurs vides.
+// Identification admin (non appelée par la TV) : les candidats portent imdbId facultatif,
+// id=0 pour une fiche IMDb seule ; /admin/items/{id}/match reçoit tmdbId OU imdbId.
+// Les id de Card/Detail restent ceux du catalogue local ; SearchResults reçoit les proches du serveur.
 
 @Serializable
 data class Card(

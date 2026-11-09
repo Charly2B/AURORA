@@ -9,6 +9,8 @@ import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import dev.remyj.auroratv.data.ServerStore
+import dev.remyj.auroratv.data.BackgroundStore
+import dev.remyj.auroratv.usb.UsbStore
 import dev.remyj.auroratv.net.Sessions
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
@@ -48,4 +50,6 @@ class AppContainer(application: Application) {
         .addInterceptor(Sessions.interceptor())
         .build()
     val servers = ServerStore(application)
+    val backgrounds = BackgroundStore(application)
+    val usb = UsbStore(application)
 }

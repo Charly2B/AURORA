@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>AURORA TV — « ⋯ » hors de l’épisode</title>
+<style>
+  :root{
+    --ink:#15110E; --night:#100D0B; --coal:#211B16; --graphite:#2E261F;
+    --paper:#F4EAD8; --mist:#EAD9B9; --ash:#CDB892; --accent:#D9B26F;
+    --gold:#FFE3A1; --deep:#B89A68; --cream:#F1E4CC; --line:#29D9B26F;
+    --seen:#4CC76B;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0B0908;color:var(--mist);font-family:var(--sans);padding:28px 24px 60px}
+  h1{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:26px;margin:0 0 4px}
+  .lede{color:var(--ash);font-size:13px;margin:0 0 26px}
+  figure{margin:0 0 34px}
+  figcaption{font-size:12px;color:var(--ash);margin:8px 0 0;letter-spacing:.4px}
+  figcaption b{color:var(--accent);font-weight:600}
+
+  .tv{width:960px;height:540px;background:var(--ink);position:relative;overflow:hidden;
+      display:flex;box-shadow:0 18px 50px #000a;border:1px solid #2a2219}
+  .side{position:relative;z-index:2;width:212px;flex:0 0 212px;height:100%;padding:18px 14px;
+      background:linear-gradient(90deg,#100D0B,#100D0B);display:flex;flex-direction:column}
+  .brand{font-family:var(--serif);font-size:22px;letter-spacing:3px;color:var(--paper);padding-left:8px}
+  .rule{width:28px;height:1px;background:var(--accent);margin:6px 0 5px 8px}
+  .kicker{font-size:10px;letter-spacing:1.5px;color:var(--ash);padding-left:8px}
+  .nav{position:relative;display:flex;align-items:center;gap:7px;border-radius:6px;padding:7px 10px 7px 9px;
+      font-size:17px;font-family:var(--serif);color:var(--mist);margin:1px 0}
+  .nav .count{margin-left:auto;font-size:13px;font-family:var(--sans);color:var(--ash)}
+  .nav.boxed{background:#F4EAD814;margin-top:16px}
+  .nav.home{margin-top:14px}
+  .nav.sel{background:#D9B26F2b;color:var(--paper)}
+  .nav .dots{display:flex;gap:3px;margin-right:2px}
+  .nav .dots i{width:5px;height:5px;border-radius:50%;display:block}
+  .group{border:1px solid #F4EAD8a6;border-radius:8px;margin:1px 0 0;background:#F4EAD809;overflow:hidden}
+  .group .nav{border-radius:0}
+  .group .head{background:#F4EAD814;padding-top:8px;padding-bottom:8px}
+  .folder{padding-left:25px;font-size:12px;font-family:var(--sans);color:var(--ash);padding-top:6px;padding-bottom:6px}
+  .all{font-size:12px;font-family:var(--sans);color:var(--ash);padding-left:25px}
+  .side .spacer{flex:1}
+  .side .hline{height:1px;background:var(--line);margin:10px 0 8px}
+  .profil .sub{font-size:11px;color:var(--ash);display:block;margin-top:1px}
+  .content{position:relative;z-index:1;flex:1;min-width:0}
+
+  .sticky{display:flex;align-items:center;gap:14px;padding:9px 32px;background:#100D0Bf2;
+      border-bottom:1px solid #D9B26F33}
+  .sticky .who{font-family:var(--serif);font-size:15px;color:var(--paper)}
+  .chip{font-family:var(--serif);font-size:16px;padding:7px 15px;border-radius:6px;color:var(--mist);
+      background:#D9B26F3d;display:flex;gap:7px;border:1px solid #FFE3A1aa}
+  .chip small{font-family:var(--sans);font-size:11px;color:var(--ash);align-self:center}
+  .sticky .where{margin-left:auto;font-size:12px;color:var(--ash)}
+  .sticky .where b{color:var(--accent);font-weight:600}
+
+  .eps{padding:10px 32px 0}
+  .ep{display:flex;align-items:center;gap:16px;border-radius:10px;padding:8px;margin-bottom:4px;position:relative}
+  .thumb{width:196px;height:110px;flex:0 0 196px;border-radius:5px;overflow:hidden;position:relative;
+      background:linear-gradient(140deg,#4a4437,#232a2b 55%,#15181a);border:1px solid #ffffff10}
+  .thumb .grain{position:absolute;inset:0;opacity:.35;background:
+      radial-gradient(60% 80% at 30% 30%,#b9a06b 0%,transparent 60%),
+      radial-gradient(50% 60% at 75% 70%,#5b7c86 0%,transparent 65%)}
+  .prog{position:absolute;left:7px;right:7px;bottom:7px;height:3px;border-radius:2px;background:#ffffff45;overflow:hidden}
+  .prog i{display:block;height:100%;background:var(--accent)}
+  .check{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--seen);
+      color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 5px #0008}
+  .txt{min-width:0;flex:1;padding-right:8px}
+  .ep .code{font-size:10px;letter-spacing:2px;color:var(--ash);font-weight:600}
+  .ep .name{font-family:var(--serif);font-size:18px;color:var(--mist);margin-top:3px}
+  .ep .desc{font-size:12.5px;line-height:18px;color:var(--mist);opacity:.85;margin-top:4px;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ep .time{font-size:11.5px;color:var(--ash);margin-top:5px}
+  .ep .time b{color:var(--accent);font-weight:500}
+
+  .more{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#100D0Bcc;color:var(--paper);
+      display:grid;place-items:center;font-size:17px;font-weight:700;line-height:1;border:1px solid #ffffff1f}
+  .more.focus{background:var(--accent);color:var(--ink);border-color:var(--gold);
+      box-shadow:0 0 0 3px #FFE3A1aa,0 0 18px #D9B26Fcc}
+  .zone{margin-left:10px;display:flex;align-items:center;justify-content:center;align-self:stretch;
+      padding-left:10px;border-left:1px solid #F4EAD81a}
+
+  .ep.focused{background:#F4EAD814;
+      box-shadow:0 0 0 2px var(--gold),0 0 0 7px #D9B26F3d,0 14px 34px -8px #D9B26F59}
+  .ep.focused .name{color:var(--gold);font-weight:600}
+  .ep.focused .code{color:var(--accent)}
+  .ep.focused .thumb{outline:2px solid #FFE3A1aa;outline-offset:1px}
+
+  .zoom{background:#171310;border:1px solid #2a2219;border-radius:10px;padding:18px;max-width:960px}
+  .zoom h3{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:18px;margin:0 0 4px}
+  .zoom p{margin:0 0 14px;font-size:12.5px;color:var(--ash);line-height:18px}
+  .zoom .ep{background:#15110E;border:1px solid #2a2219}
+  .lbl{font-size:10.5px;color:var(--ash);letter-spacing:1.2px;margin:12px 0 5px}
+  .arrow{font-size:11px;color:var(--accent)}
+  .changes{max-width:960px;background:#171310;border:1px solid #2a2219;border-radius:10px;padding:18px 20px;margin-top:26px}
+  .changes h3{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:18px;margin:0 0 10px}
+  .changes table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .changes td{padding:7px 6px;border-top:1px solid #2a2219;vertical-align:top}
+  .changes tr:first-child td{border-top:0}
+  .changes .k{width:24px;color:var(--ash)}
+  .note{max-width:960px;font-size:12px;color:var(--ash);margin:14px 0 0;line-height:18px}
+  .note b{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<h1>Les « ⋯ » sortent de la vignette : à droite de la ligne d’épisode</h1>
+<p class="lede">Comme Plex. Maquette avant modification — rien n’est encore touché au code.</p>
+
+<figure>
+  <div class="tv">
+    <aside class="side">
+      <div class="brand">AURORA</div>
+      <div class="rule"></div>
+      <div class="kicker">CINÉMATHÈQUE PRIVÉE</div>
+      <div class="nav boxed">Rechercher</div>
+      <div class="nav home">Accueil</div>
+      <div class="group">
+        <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Films<span class="count">412</span></div>
+        <div class="nav folder">Films<span class="count">398</span></div>
+        <div class="nav folder">Films en cours<span class="count">9</span></div>
+        <div class="all" style="padding-bottom:8px">Tous les dossiers</div>
+      </div>
+      <div class="group" style="margin-top:10px">
+        <div class="nav head sel"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Séries<span class="count">38</span></div>
+        <div class="nav folder">Séries<span class="count">31</span></div>
+        <div class="nav folder">Séries en cours<span class="count">4</span></div>
+        <div class="all" style="padding-bottom:8px">Tous les dossiers</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="hline"></div>
+      <div class="nav profil" style="flex-direction:column;align-items:flex-start;padding-left:9px">Profil<span class="sub">Synology DS920</span></div>
+    </aside>
+
+    <div class="content">
+      <div class="sticky">
+        <span class="who">Shōgun</span>
+        <span class="chip">Saison 1<small>10</small></span>
+        <span class="where">Épisode <b>2</b> sur 10 · 3 vus</span>
+      </div>
+
+      <div class="eps">
+        <div class="ep">
+          <div class="thumb"><div class="grain"></div><div class="check">✓</div></div>
+          <div class="txt">
+            <div class="code">ÉPISODE 1</div>
+            <div class="name">Anjin</div>
+            <div class="desc">À la dérive après une tempête, le pilote anglais Blackthorne atteint une côte inconnue où il est fait prisonnier.</div>
+            <div class="time">57 min</div>
+          </div>
+          <div class="zone"><div class="more">⋯</div></div>
+        </div>
+
+        <div class="ep focused">
+          <div class="thumb"><div class="grain"></div><div class="prog"><i style="width:42%"></i></div></div>
+          <div class="txt">
+            <div class="code">ÉPISODE 2</div>
+            <div class="name">Serviteurs de deux maîtres</div>
+            <div class="desc">Toranaga confie Blackthorne à Mariko. Un accord fragile se dessine entre le seigneur et le pilote, tandis que la cour complote.</div>
+            <div class="time">55 min · <b>reprise à 23:41</b></div>
+          </div>
+          <div class="zone"><div class="more">⋯</div></div>
+        </div>
+
+        <div class="ep">
+          <div class="thumb"><div class="grain"></div></div>
+          <div class="txt">
+            <div class="code">ÉPISODE 3</div>
+            <div class="name">Demain est demain</div>
+            <div class="desc">Le conseil se réunit ; Toranaga doit choisir entre la guerre et l’effacement.</div>
+            <div class="time">56 min</div>
+          </div>
+          <div class="zone"><div class="more focus">⋯</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>1.</b> Chaque ligne garde son « ⋯ » à droite, hors de la vignette. La ligne 3 montre le bouton focalisé (cercle or).</figcaption>
+</figure>
+
+<div class="zoom">
+  <h3>Anatomie de la ligne</h3>
+  <p>La vignette redevient une image, sans bouton par-dessus : la barre de progression reprend toute sa largeur.</p>
+  <div class="lbl">VIGNETTE · RÉSUMÉ · « ⋯ »</div>
+  <div class="ep">
+    <div class="thumb"><div class="grain"></div><div class="prog"><i style="width:42%"></i></div></div>
+    <div class="txt">
+      <div class="code">ÉPISODE 2</div>
+      <div class="name">Serviteurs de deux maîtres</div>
+      <div class="desc">Toranaga confie Blackthorne à Mariko. Un accord fragile se dessine entre le seigneur et le pilote, tandis que la cour complote.</div>
+      <div class="time">55 min · <b>reprise à 23:41</b></div>
+    </div>
+    <div class="zone"><div class="more">⋯</div></div>
+  </div>
+  <div class="lbl" style="margin-top:16px">TÉLÉCOMMANDE</div>
+  <div style="font-size:12.5px;line-height:20px;color:var(--mist)">
+    <span class="arrow">▶</span> depuis la ligne → le « ⋯ » (à droite) &nbsp;·&nbsp;
+    <span class="arrow">OK</span> sur le « ⋯ » → Vu / Pas vu &nbsp;·&nbsp;
+    <span class="arrow">◀</span> → retour sur la ligne &nbsp;·&nbsp;
+    <span class="arrow">OK</span> sur la ligne → lecture
+  </div>
+</div>
+
+<div class="changes">
+  <h3>Ce qui change</h3>
+  <table>
+    <tr><td class="k">1</td><td>Le « ⋯ » quitte le coin de la vignette et se place à l’extrémité droite de la ligne, centré verticalement.</td></tr>
+    <tr><td class="k">2</td><td>Il a sa propre colonne séparée par un filet : le résumé ne passe plus dessous, et le bouton ne se confond plus avec l’image.</td></tr>
+    <tr><td class="k">3</td><td>La barre de progression et la coche « vu » utilisent à nouveau toute la vignette.</td></tr>
+    <tr><td class="k">4</td><td>La navigation ne change pas : ▶ mène au « ⋯ », OK ouvre Vu / Pas vu, ◀ revient, OK sur la ligne lance la lecture.</td></tr>
+    <tr><td class="k">5</td><td>Les affiches de films gardent leur « ⋯ » sur la vignette ; les séries n’en ont toujours pas.</td></tr>
+  </table>
+</div>
+
+<p class="note"><b>Variante possible :</b> n’afficher le « ⋯ » que sur la ligne focalisée (plus sobre, comme un survol sur le web).
+Je propose de le laisser <b>toujours visible</b> : à trois mètres et sans souris, on voit tout de suite que l’action existe.</p>
+
+</body>
+</html>

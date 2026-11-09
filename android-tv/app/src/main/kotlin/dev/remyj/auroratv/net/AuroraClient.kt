@@ -167,6 +167,12 @@ class AuroraClient(private val http: OkHttpClient, val baseUrl: String) {
     suspend fun me(): Me = get("/auth/me")
     suspend fun logout() { runCatching { call("POST", "/auth/logout") } }
     suspend fun home(): Home = get("/home")
+    suspend fun backgrounds(): List<BackgroundImage> = get<BackgroundsResponse>("/backgrounds").images
+
+    /** Reconstruit sur le NAS courant ; une préférence ne contient jamais d'URL ni de jeton. */
+    fun backgroundUrl(id: String): String? =
+        if (id.matches(Regex("[a-fA-F0-9]{64}"))) absolute("/api/v1/backgrounds/$id/image") else null
+
     suspend fun libraries(): List<LibraryRef> = get("/libraries")
 
     suspend fun list(kind: String, libraryId: Long?, sort: String, desc: Boolean, offset: Int, limit: Int, unwatched: Boolean = false): ListPage {
@@ -187,7 +193,7 @@ class AuroraClient(private val http: OkHttpClient, val baseUrl: String) {
     suspend fun play(req: PlayRequest): PlayResponse = post("/play", req)
 
     suspend fun progress(itemId: Long, fileId: Long, position: Double, duration: Double) {
-        runCatching { call("POST", "/items/$itemId/progress", json.encodeToString(Progress(fileId, position, duration))) }
+        call("POST", "/items/$itemId/progress", json.encodeToString(Progress(fileId, position, duration)))
     }
 
     suspend fun setState(itemId: Long, favorite: Boolean? = null, watchlist: Boolean? = null, watched: Boolean? = null, season: Int? = null) {

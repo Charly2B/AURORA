@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>AURORA TV — fiche série : où suis-je ?</title>
+<style>
+  :root{
+    --ink:#15110E; --night:#100D0B; --coal:#211B16; --graphite:#2E261F;
+    --paper:#F4EAD8; --mist:#EAD9B9; --ash:#CDB892; --accent:#D9B26F;
+    --gold:#FFE3A1; --deep:#B89A68; --cream:#F1E4CC; --line:#29D9B26F;
+    --seen:#4CC76B;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0B0908;color:var(--mist);font-family:var(--sans);padding:28px 24px 60px}
+  h1{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:26px;margin:0 0 4px}
+  .lede{color:var(--ash);font-size:13px;margin:0 0 26px}
+  .stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;margin-bottom:34px}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--ash);margin:8px 0 0;letter-spacing:.4px}
+  figcaption b{color:var(--accent);font-weight:600}
+
+  /* ---------- écran TV 960 × 540 dp ---------- */
+  .tv{width:960px;height:540px;background:var(--ink);position:relative;overflow:hidden;
+      display:flex;box-shadow:0 18px 50px #000a;border:1px solid #2a2219}
+  .backdrop{position:absolute;right:0;top:0;width:58%;height:330px;opacity:.5;
+      background:
+        radial-gradient(120% 90% at 75% 10%, #6d5a3a 0%, #3a3026 42%, transparent 72%),
+        linear-gradient(200deg,#243040,#101418 70%);
+      -webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent 100%),
+                        linear-gradient(to right,transparent 0%,#000 55%);
+      -webkit-mask-composite:source-in;mask-composite:intersect}
+  .veil{position:absolute;inset:0;background:
+      linear-gradient(90deg,var(--ink) 0%,transparent 60%),
+      linear-gradient(180deg,transparent 45%,var(--ink) 100%)}
+
+  /* ---------- sidebar ---------- */
+  .side{position:relative;z-index:2;width:212px;flex:0 0 212px;height:100%;padding:18px 14px;
+      background:linear-gradient(90deg,#100D0B,#100D0B);display:flex;flex-direction:column}
+  .brand{font-family:var(--serif);font-size:22px;letter-spacing:3px;color:var(--paper);padding-left:8px}
+  .rule{width:28px;height:1px;background:var(--accent);margin:6px 0 5px 8px}
+  .kicker{font-size:10px;letter-spacing:1.5px;color:var(--ash);padding-left:8px}
+  .nav{position:relative;display:flex;align-items:center;gap:7px;border-radius:6px;padding:7px 10px 7px 9px;
+      font-size:17px;font-family:var(--serif);color:var(--mist);margin:1px 0}
+  .nav .count{margin-left:auto;font-size:13px;font-family:var(--sans);color:var(--ash)}
+  .nav.boxed{background:#F4EAD814;margin-top:16px}
+  .nav.home{margin-top:14px}
+  .nav.sel{background:#D9B26F2b;color:var(--paper)}
+  .nav.sel::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--accent)}
+  .nav .dots{display:flex;gap:3px;margin-right:2px}
+  .nav .dots i{width:5px;height:5px;border-radius:50%;display:block}
+  .group{border:1px solid #F4EAD8a6;border-radius:8px;margin:1px 0 0;background:#F4EAD809;overflow:hidden}
+  .group .nav{border-radius:0}
+  .group .head{background:#F4EAD814;padding-top:8px;padding-bottom:8px}
+  .folder{padding-left:25px;font-size:12px;font-family:var(--sans);color:var(--ash);padding-top:6px;padding-bottom:6px}
+  .folder.sel{color:var(--paper);background:#D9B26F2b}
+  .folder .count{font-size:11px}
+  .all{font-size:12px;font-family:var(--sans);color:var(--ash);padding-left:25px}
+  .side .spacer{flex:1}
+  .side .hline{height:1px;background:var(--line);margin:10px 0 8px}
+  .profil .sub{font-size:11px;color:var(--ash);display:block;margin-top:1px}
+
+  /* ---------- contenu ---------- */
+  .content{position:relative;z-index:1;flex:1;min-width:0;padding:0}
+
+  .head{display:flex;gap:24px;padding:28px 34px 0 34px}
+  .poster{width:150px;height:225px;border-radius:6px;border:1px solid #F4EAD81f;overflow:hidden;position:relative;
+      background:linear-gradient(180deg,#2b3a4d,#141a21 62%)}
+  .poster .fallback{position:absolute;inset:auto 10px 12px 10px}
+  .poster .fallback b{display:block;font-family:var(--serif);font-weight:400;font-size:17px;color:var(--paper);line-height:19px}
+  .poster .fallback span{font-size:10px;color:var(--ash)}
+  .poster hr{border:0;height:1px;width:26px;background:var(--accent);margin:7px 0}
+  .eyebrow{font-size:11px;letter-spacing:2.6px;color:var(--accent);font-weight:600;text-transform:uppercase}
+  .titles{display:flex;align-items:flex-end;gap:12px;margin-top:6px}
+  .titles h2{font-family:var(--serif);font-weight:400;font-size:40px;line-height:42px;color:var(--paper);margin:0}
+  .titles .orig{font-family:var(--serif);font-size:17px;color:var(--ash);padding-bottom:6px}
+  .meta{font-size:13px;color:var(--mist);margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge{font-size:9px;font-weight:700;letter-spacing:.6px;color:var(--accent);border:1px solid #D9B26F8c;
+      border-radius:3px;padding:1px 5px;text-transform:uppercase}
+  .syn{font-size:14px;line-height:20px;color:var(--mist);margin-top:9px;max-width:500px}
+  .seen-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .bar{height:4px;border-radius:2px;background:#FFFFFF2e;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .seen-row span{font-size:12px;color:var(--ash)}
+
+  .seasons{display:flex;gap:2px;padding:3px;background:#100D0Be6;border:1px solid #D9B26F3d;
+      border-radius:9px;width:max-content;margin:20px 34px 10px}
+  .chip{font-family:var(--serif);font-size:16px;padding:7px 15px;border-radius:6px;color:var(--mist);display:flex;gap:7px}
+  .chip small{font-family:var(--sans);font-size:11px;color:var(--ash);align-self:center}
+  .chip.on{background:#D9B26F3d;color:var(--paper)}
+  .chip.focus{background:var(--accent);color:var(--ink)}
+  .chip.focus small{color:#00000099}
+
+  .eps{padding:0 34px}
+  .ep{display:flex;gap:16px;border-radius:10px;padding:7px;margin-bottom:4px;position:relative}
+  .thumb{width:196px;height:110px;flex:0 0 196px;border-radius:5px;overflow:hidden;position:relative;
+      background:linear-gradient(140deg,#4a4437,#232a2b 55%,#15181a);border:1px solid #ffffff10}
+  .thumb .grain{position:absolute;inset:0;opacity:.35;background:
+      radial-gradient(60% 80% at 30% 30%,#b9a06b 0%,transparent 60%),
+      radial-gradient(50% 60% at 75% 70%,#5b7c86 0%,transparent 65%)}
+  .thumb .thin{position:absolute;left:0;right:0;bottom:0;height:4px;background:#FFF
+      ;opacity:.25}
+  .prog{position:absolute;left:7px;right:38px;bottom:7px;height:3px;border-radius:2px;background:#ffffff45;overflow:hidden}
+  .prog i{display:block;height:100%;background:var(--accent)}
+  .check{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--seen);
+      color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 5px #0008}
+  .more{position:absolute;right:6px;bottom:6px;width:24px;height:24px;border-radius:50%;background:#100D0Bcc;
+      color:var(--paper);display:grid;place-items:center;font-size:15px;font-weight:700;line-height:1}
+  .more.focus{background:var(--accent);color:var(--ink);box-shadow:0 0 0 2px #FFE3A188,0 0 14px #D9B26Fcc}
+  .ep .txt{min-width:0;padding-top:2px}
+  .ep .code{font-size:10px;letter-spacing:2px;color:var(--ash);font-weight:600}
+  .ep .name{font-family:var(--serif);font-size:18px;color:var(--mist);margin-top:3px}
+  .ep .desc{font-size:12.5px;line-height:18px;color:var(--mist);opacity:.85;margin-top:4px;max-width:400px;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ep .time{font-size:11.5px;color:var(--ash);margin-top:5px}
+  .ep .time b{color:var(--accent);font-weight:500}
+
+  /* focus : le point central de la maquette */
+  .ep.focused{background:#F4EAD814;
+      box-shadow:0 0 0 2px var(--gold),0 0 0 7px #D9B26F3d,0 14px 34px -8px #D9B26F59}
+  .ep.focused .name{color:var(--gold);font-weight:600}
+  .ep.focused .code{color:var(--accent)}
+  .ep.focused .thumb{outline:2px solid #FFE3A1aa;outline-offset:1px;transform:scale(1.015)}
+  .ep.current .thumb{outline:2px solid var(--accent);outline-offset:1px}
+
+  /* barre collante */
+  .sticky{display:flex;align-items:center;gap:14px;padding:9px 34px;background:#100D0Bf2;
+      border-bottom:1px solid #D9B26F33;box-shadow:0 10px 24px -12px #000}
+  .sticky .who{font-family:var(--serif);font-size:15px;color:var(--paper)}
+  .sticky .where{margin-left:auto;font-size:12px;color:var(--ash);letter-spacing:.4px}
+  .sticky .where b{color:var(--accent);font-weight:600}
+
+  /* ---------- planche « vignette » ---------- */
+  .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:960px}
+  .card{background:#171310;border:1px solid #2a2219;border-radius:10px;padding:14px}
+  .card h3{margin:0 0 4px;font-family:var(--serif);font-weight:400;color:var(--paper);font-size:16px}
+  .card p{margin:0 0 12px;font-size:12px;color:var(--ash);line-height:17px}
+  .card .thumb{width:100%;height:0;padding-bottom:56.25%;flex:none;position:relative;overflow:hidden;border-radius:6px}
+  .card .thumb-in{position:absolute;inset:0}
+  .legend{font-size:11.5px;color:var(--ash);margin-top:9px}
+  .legend b{color:var(--paper);font-weight:500}
+
+  /* ---------- liste des changements ---------- */
+  .changes{max-width:960px;background:#171310;border:1px solid #2a2219;border-radius:10px;padding:18px 20px}
+  .changes h3{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:18px;margin:0 0 10px}
+  .changes table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .changes td{padding:7px 6px;border-top:1px solid #2a2219;vertical-align:top;color:var(--mist)}
+  .changes tr:first-child td{border-top:0}
+  .tag{font-size:10px;letter-spacing:.5px;padding:2px 7px;border-radius:20px;white-space:nowrap;font-weight:600}
+  .done{background:#4CC76B26;color:#7ede97;border:1px solid #4CC76B59}
+  .todo{background:#D9B26F26;color:var(--gold);border:1px solid #D9B26F59}
+  .ask{background:#F2B36620;color:#F2B366;border:1px solid #F2B36659}
+  .changes .k{width:26px;color:var(--ash)}
+  .changes .a{width:96px;text-align:right}
+
+  .note{max-width:960px;font-size:12px;color:var(--ash);margin:14px 0 0;line-height:18px}
+  .note b{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<h1>Fiche série — voir où l’on est, et les 3 points sur l’épisode</h1>
+<p class="lede">AURORA TV · Android TV 960 × 540 dp · maquette avant modification. Rien n’est encore touché au code.</p>
+
+<div class="stage">
+
+  <!-- ÉCRAN 1 : arrivée dans la fiche -->
+  <figure>
+    <div class="tv">
+      <div class="backdrop"></div><div class="veil"></div>
+      <aside class="side">
+        <div class="brand">AURORA</div>
+        <div class="rule"></div>
+        <div class="kicker">CINÉMATHÈQUE PRIVÉE</div>
+        <div class="nav boxed">Rechercher</div>
+        <div class="nav home">Accueil</div>
+        <div class="group">
+          <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Films<span class="count">412</span></div>
+          <div class="nav folder">Films<span class="count">398</span></div>
+          <div class="nav folder">Films en cours<span class="count">9</span></div>
+          <div class="nav folder">Animations<span class="count">5</span></div>
+          <div class="nav all" style="padding-bottom:8px">Tous les dossiers</div>
+        </div>
+        <div class="group" style="margin-top:10px">
+          <div class="nav head sel"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Séries<span class="count">38</span></div>
+          <div class="nav folder sel">Séries<span class="count">31</span></div>
+          <div class="nav folder">Séries en cours<span class="count">4</span></div>
+          <div class="nav all" style="padding-bottom:8px">Tous les dossiers</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="hline"></div>
+        <div class="nav profil" style="flex-direction:column;align-items:flex-start;padding-left:9px">Profil<span class="sub">Synology DS920</span></div>
+      </aside>
+
+      <div class="content">
+        <div class="head">
+          <div class="poster"><div class="fallback"><hr><b>Shōgun</b><span>2024</span></div></div>
+          <div style="min-width:0">
+            <div class="eyebrow">SÉRIE · 2024</div>
+            <div class="titles"><h2>Shōgun</h2><span class="orig">将軍</span></div>
+            <div class="meta">1 saison · Drame · 8.7/10 <span class="badge">16+</span><span class="badge">4K</span><span class="badge">HDR</span></div>
+            <div class="syn">Japon, 1600. Le navire « Erasmus » échoue sur les côtes d’un pays au bord de la guerre civile. Un marin anglais devient le pion d’un seigneur qui joue sa survie.</div>
+            <div class="seen-row"><div class="bar" style="width:150px"><i style="width:30%"></i></div><span>3 épisodes vus sur 10</span></div>
+          </div>
+        </div>
+
+        <div class="seasons">
+          <div class="chip on">Saison 1<small>10</small></div>
+        </div>
+
+        <div class="eps">
+          <div class="ep">
+            <div class="thumb"><div class="grain"></div><div class="check">✓</div><div class="more">⋯</div></div>
+            <div class="txt">
+              <div class="code">ÉPISODE 1</div>
+              <div class="name">Anjin</div>
+              <div class="desc">À la dérive après une tempête, le pilote anglais Blackthorne atteint une côte inconnue où il est fait prisonnier.</div>
+              <div class="time">57 min</div>
+            </div>
+          </div>
+
+          <div class="ep focused">
+            <div class="thumb"><div class="grain"></div><div class="more">⋯</div><div class="prog"><i style="width:42%"></i></div></div>
+            <div class="txt">
+              <div class="code">ÉPISODE 2</div>
+              <div class="name" style="color:var(--gold)">Serviteurs de deux maîtres</div>
+              <div class="desc">Toranaga confie Blackthorne à Mariko. Un accord fragile se dessine entre le seigneur et le pilote, tandis que la cour complote.</div>
+              <div class="time">55 min · <b>reprise à 23:41</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>1.</b> Arrivée dans la fiche : la ligne de l’épisode a un cadre or net, un halo, et son titre passe en or.</figcaption>
+  </figure>
+
+  <!-- ÉCRAN 2 : navigation défilée, barre de saison collante -->
+  <figure>
+    <div class="tv">
+      <div class="veil" style="background:var(--ink)"></div>
+      <aside class="side">
+        <div class="brand">AURORA</div>
+        <div class="rule"></div>
+        <div class="kicker">CINÉMATHÈQUE PRIVÉE</div>
+        <div class="nav boxed">Rechercher</div>
+        <div class="nav home">Accueil</div>
+        <div class="group">
+          <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Films<span class="count">412</span></div>
+          <div class="nav folder">Films<span class="count">398</span></div>
+          <div class="nav folder">Films en cours<span class="count">9</span></div>
+          <div class="nav folder">Animations<span class="count">5</span></div>
+          <div class="nav all" style="padding-bottom:8px">Tous les dossiers</div>
+        </div>
+        <div class="group" style="margin-top:10px">
+          <div class="nav head sel"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Séries<span class="count">38</span></div>
+          <div class="nav folder sel">Séries<span class="count">31</span></div>
+          <div class="nav folder">Séries en cours<span class="count">4</span></div>
+          <div class="nav all" style="padding-bottom:8px">Tous les dossiers</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="hline"></div>
+        <div class="nav profil" style="flex-direction:column;align-items:flex-start;padding-left:9px">Profil<span class="sub">Synology DS920</span></div>
+      </aside>
+
+      <div class="content">
+        <div class="sticky">
+          <span class="who">Shōgun</span>
+          <span class="badge" style="border-color:#D9B26F;color:var(--gold)">Saison 1</span>
+          <span class="where">Épisode <b>4</b> sur 10 · 3 vus</span>
+        </div>
+        <div class="eps" style="padding-top:10px">
+          <div class="ep">
+            <div class="thumb"><div class="grain"></div><div class="check">✓</div><div class="more">⋯</div></div>
+            <div class="txt"><div class="code">ÉPISODE 3</div><div class="name">Demain est demain</div>
+              <div class="desc">Le conseil se réunit ; Toranaga doit choisir entre la guerre et l’effacement.</div>
+              <div class="time">56 min</div></div>
+          </div>
+          <div class="ep focused">
+            <div class="thumb"><div class="grain"></div><div class="prog"><i style="width:68%"></i></div></div>
+            <div class="txt"><div class="code">ÉPISODE 4</div><div class="name" style="color:var(--gold)">Le vent de la disgrâce</div>
+              <div class="desc">Blackthorne apprend les codes de la cour ; Mariko traduit ce que personne n’ose dire à voix haute.</div>
+              <div class="time">58 min · <b>reprise à 39:12</b></div></div>
+          </div>
+          <div class="ep">
+            <div class="thumb"><div class="grain"></div><div class="more">⋯</div></div>
+            <div class="txt"><div class="code">ÉPISODE 5</div><div class="name">Le faucon brisé</div>
+              <div class="desc">Une trahison au sein du cercle proche change l’équilibre des forces.</div>
+              <div class="time">54 min</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>2.</b> Après défilement : l’en-tête s’efface, la barre <b>Saison 1 · épisode 4 sur 10</b> reste collée en haut.</figcaption>
+  </figure>
+
+  <!-- ÉCRAN 3 : comparaison focus -->
+  <figure>
+    <div class="tv" style="height:auto;display:block;padding:18px 22px">
+      <div style="font-family:var(--serif);font-size:18px;color:var(--paper);margin-bottom:12px">Pourquoi on ne voyait pas où on était</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div>
+          <div style="font-size:11px;letter-spacing:1.6px;color:var(--ash);margin-bottom:8px">AVANT — liseré de 2 dp</div>
+          <div class="ep" style="margin:0;border:2px solid var(--accent);background:#F4EAD80c">
+            <div class="thumb" style="width:150px;flex:0 0 150px;height:84px"><div class="grain"></div><div class="more">⋯</div></div>
+            <div class="txt"><div class="code">ÉPISODE 2</div><div class="name">Serviteurs de deux maîtres</div>
+              <div class="time">55 min · reprise à 23:41</div></div>
+          </div>
+          <div class="legend">Sur un téléviseur à 3 m, un liseré fin se confond avec le cadre de la vignette.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;letter-spacing:1.6px;color:var(--gold);margin-bottom:8px">APRÈS — cadre épais + halo + titre or</div>
+          <div class="ep focused" style="margin:0">
+            <div class="thumb" style="width:150px;flex:0 0 150px;height:84px"><div class="grain"></div><div class="more">⋯</div><div class="prog"><i style="width:42%"></i></div></div>
+            <div class="txt"><div class="code">ÉPISODE 2</div><div class="name">Serviteurs de deux maîtres</div>
+              <div class="time">55 min · <b>reprise à 23:41</b></div></div>
+          </div>
+          <div class="legend">Même repère que les affiches des grilles : on retrouve le focus d’un coup d’œil.</div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>3.</b> Focus de l’épisode, avant / après.</figcaption>
+  </figure>
+</div>
+
+<!-- Planche vignette -->
+<h1 style="font-size:20px;margin-bottom:4px">La vignette d’épisode</h1>
+<p class="lede" style="margin-bottom:14px">Les trois points restent toujours visibles, en bas à droite de la vignette.</p>
+<div class="board" style="margin-bottom:30px">
+  <div class="card">
+    <h3>Non vu, pas de reprise</h3>
+    <p>Rien sur la vignette : seule la ligne « 57 min » apparaît.</p>
+    <div class="thumb"><div class="thumb-in"><div class="grain" style="position:absolute;inset:0"></div><div class="more">⋯</div></div></div>
+    <div class="legend">Le « ⋯ » ouvre <b>Vu / Pas vu</b>.</div>
+  </div>
+  <div class="card">
+    <h3>En cours</h3>
+    <p>Progression horizontale sur l’épisode et « reprise à » dans la ligne.</p>
+    <div class="thumb"><div class="thumb-in"><div class="grain" style="position:absolute;inset:0"></div><div class="more">⋯</div><div class="prog"><i style="width:42%"></i></div></div></div>
+    <div class="legend">La barre s’arrête avant les trois points.</div>
+  </div>
+  <div class="card">
+    <h3>Vu (80 % atteint)</h3>
+    <p>Coche verte, plus de barre de progression.</p>
+    <div class="thumb"><div class="thumb-in"><div class="grain" style="position:absolute;inset:0"></div><div class="check">✓</div><div class="more">⋯</div></div></div>
+    <div class="legend">Le seuil est calculé sur la durée du fichier, pas sur le nombre d’épisodes.</div>
+  </div>
+  <div class="card">
+    <h3>Les trois points focalisés</h3>
+    <p>▶ depuis l’épisode, puis ◀ pour revenir.</p>
+    <div class="thumb"><div class="thumb-in"><div class="grain" style="position:absolute;inset:0"></div><div class="more focus">⋯</div><div class="prog"><i style="width:42%"></i></div></div></div>
+    <div class="legend">Fond or quand on est dessus : on voit qu’on a quitté la ligne.</div>
+  </div>
+  <div class="card">
+    <h3>Fenêtre Vu / Pas vu</h3>
+    <p>État actuel coché et focalisé ; Retour referme.</p>
+    <div style="background:var(--coal);border:1px solid var(--line);border-radius:10px;padding:8px">
+      <div style="font-family:var(--serif);font-size:15px;color:var(--paper);padding:2px 6px 7px">Épisode 2</div>
+      <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:7px;color:var(--mist)"><span style="width:16px;font-weight:700"></span>Vu</div>
+      <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:7px;background:var(--accent);color:var(--ink);font-weight:600"><span style="width:16px;font-weight:700">✓</span>Pas vu</div>
+    </div>
+    <div class="legend">Même fenêtre pour films et séries.</div>
+  </div>
+  <div class="card">
+    <h3>Épisode suivant</h3>
+    <p>Fin d’épisode : compte à rebours de 8 s, annulable.</p>
+    <div style="background:#211B16f2;border-radius:10px;padding:10px">
+      <div style="font-size:9px;letter-spacing:1.6px;color:var(--ash)">ÉPISODE SUIVANT DANS 8 S</div>
+      <div style="font-size:10px;color:var(--accent);margin-top:3px">S01 E05</div>
+      <div style="font-family:var(--serif);font-size:14px;color:var(--paper);margin-top:2px">Le faucon brisé</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <span style="background:var(--cream);color:var(--ink);border-radius:5px;padding:4px 12px;font-size:11px;font-weight:600">Lire</span>
+        <span style="background:#D9B26F24;color:var(--paper);border-radius:5px;padding:4px 12px;font-size:11px">Annuler</span>
+      </div>
+    </div>
+    <div class="legend">Déjà en place, rien à changer.</div>
+  </div>
+</div>
+
+<div class="changes">
+  <h3>Ce que je touche — et ce qui est déjà fait</h3>
+  <table>
+    <tr><td class="k">1</td><td>Sidebar sans les trois « En cours » ; les dossiers NAS « Films en cours / Séries en cours » restent.</td><td class="a"><span class="tag done">déjà fait</span></td></tr>
+    <tr><td class="k">2</td><td>Fiche série : plus de bouton « Reprendre » global, plus de Ma liste / Favori. La reprise et la progression sont sur l’épisode.</td><td class="a"><span class="tag done">déjà fait</span></td></tr>
+    <tr><td class="k">3</td><td>« ⋯ » sur chaque vignette d’épisode, en bas à droite ; ▶ l’atteint, ◀ revient.</td><td class="a"><span class="tag done">déjà fait</span></td></tr>
+    <tr><td class="k">4</td><td>Vu automatique à 80 % de la durée du fichier, y compris si le seuil du NAS est différent. L’épisode est vert au retour.</td><td class="a"><span class="tag done">déjà fait</span></td></tr>
+    <tr><td class="k">5</td><td>Focus de l’épisode : cadre or 3 dp + halo + titre or + vignette légèrement relevée (comme les affiches).</td><td class="a"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">6</td><td>Barre de saison collante en haut pendant le défilement, avec « Épisode 4 sur 10 · 3 vus ».</td><td class="a"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">7</td><td>« ⋯ » ancré dans le coin de la vignette (aujourd’hui posé par un décalage fixe de 177 × 89 dp).</td><td class="a"><span class="tag todo">à faire</span></td></tr>
+  </table>
+</div>
+
+<p class="note"><b>Une question avant de coder :</b> au-dessus des saisons, la ligne « 3 épisodes vus sur 10 » avec sa barre — je la garde (elle résume la série) ou je la retire aussi, puisque chaque épisode porte déjà sa progression ? Je penche pour la garder : ce n’est pas une reprise, c’est l’avancement de la série.</p>
+
+</body>
+</html>

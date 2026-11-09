@@ -44,6 +44,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +73,8 @@ import dev.remyj.auroratv.net.Card
 import dev.remyj.auroratv.net.PlayRequest
 import dev.remyj.auroratv.net.PlayResponse
 import dev.remyj.auroratv.net.Sessions
+import dev.remyj.auroratv.player.PlaybackProgressRegistry
+import dev.remyj.auroratv.player.PlaybackSample
 import dev.remyj.auroratv.ui.components.episodeCode
 import dev.remyj.auroratv.ui.theme.Aurora
 import kotlinx.coroutines.delay
@@ -110,7 +113,14 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
     val client = vm.client ?: return
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val progress = remember(client, screen.itemId) {
+        PlaybackProgressRegistry.shared.begin(client, screen.itemId,
+            report = { sample -> client.progress(screen.itemId, sample.fileId, sample.position, sample.duration) },
+            markWatched = { client.setState(screen.itemId, watched = true) })
+    }
     var session by remember { mutableStateOf<Session?>(null) }
+    var sourceInstalling by remember { mutableStateOf(true) }
+    var sourceMediaId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var triedRemux by remember { mutableStateOf(false) }
     var triedTranscode by remember { mutableStateOf(false) }
@@ -133,9 +143,12 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
     var tracks by remember { mutableStateOf<Tracks?>(null) }
     var interaction by remember { mutableIntStateOf(0) }
     var next by remember { mutableStateOf<Card?>(null) }
+    var noNext by remember { mutableStateOf(false) }
     var countdown by remember { mutableStateOf<Int?>(null) }
     var ended by remember { mutableStateOf(false) }
     var restarts by remember { mutableIntStateOf(0) }
+    // « Ouvrir dans VLC » met l'activité en arrière-plan : ce n'est pas une sortie du lecteur.
+    var leavingForVlc by remember { mutableStateOf(false) }
 
     val rootFocus = remember { FocusRequester() }
     val seekFocus = remember { FocusRequester() }
@@ -162,6 +175,13 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
 
     /** Position absolue dans l'œuvre (secondes). */
     fun absolute(): Double = (session?.play?.offset ?: 0.0) + player.currentPosition / 1000.0
+
+    fun progressSample(): PlaybackSample? {
+        val s = session ?: return null
+        // L'offset NAS et la position du lecteur doivent appartenir à la même source prête.
+        if (sourceInstalling || player.currentMediaItem?.mediaId != sourceMediaId) return null
+        return PlaybackSample(s.play.fileId, s.play.offset + player.currentPosition / 1000.0, s.play.duration)
+    }
 
     /** (Re)demande la lecture au NAS à la position [start] et branche la source. */
     fun startAt(start: Double, audioIndex: Int? = null, forceMode: String? = null) {
@@ -191,12 +211,16 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
                 // Passage HLS → direct (ex. « Réessayer ») : le NAS ne démarre rien, donc n'arrête pas l'ancienne session.
                 if (resp.mode == "direct") session?.play?.sessionId?.let { old -> GlobalScope.launch { client.stopSession(old) } }
                 val title = if (detail.kind == "episode") "${detail.seriesTitle.orEmpty()} · ${episodeCode(detail.season, detail.episode, detail.episodeEnd)} · ${detail.title}" else detail.title
+                progressSample()?.let(progress::report)
+                sourceInstalling = true
+                sourceMediaId = gen.toString()
                 session = Session(resp, title, detail.id, detail.kind)
                 frenchApplied = false
                 // HLS : playlist EVENT sans fin = « direct » pour ExoPlayer, qui démarrerait au bord produit
                 // (jusqu'à plusieurs minutes plus loin en remux). On impose le début de la session.
-                if (resp.mode == "direct") player.setMediaItem(buildMediaItem(client, resp))
-                else player.setMediaItem(buildMediaItem(client, resp), 0L)
+                val mediaItem = buildMediaItem(client, resp).buildUpon().setMediaId(sourceMediaId!!).build()
+                if (resp.mode == "direct") player.setMediaItem(mediaItem)
+                else player.setMediaItem(mediaItem, 0L)
                 player.prepare()
                 if (resp.mode == "direct" && from > 0) player.seekTo((from * 1000).toLong())
                 player.play()
@@ -242,10 +266,24 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
     }
 
     fun saveProgress() {
+        progressSample()?.let(progress::report)
+    }
+
+    /** Épisode suivant demandé depuis le panneau, sans attendre la fin du générique. */
+    fun playNext() {
         val s = session ?: return
-        val pos = absolute()
-        // GlobalScope : appelé aussi pendant la fermeture de l'écran, dont le scope est déjà annulé.
-        if (pos > 0) GlobalScope.launch { client.progress(s.itemId, s.play.fileId, pos, s.play.duration) }
+        scope.launch {
+            val result = runCatching { client.next(s.itemId) }
+            val n = result.getOrNull()
+            if (n == null) {
+                // Vraiment pas de suite : le dire. Une erreur réseau ne doit pas faire croire au dernier épisode.
+                if (result.isSuccess) noNext = true
+                interaction++
+                return@launch
+            }
+            saveProgress()
+            vm.replace(Screen.Player(n.id))
+        }
     }
 
     fun stop() {
@@ -306,6 +344,9 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
             }
 
             override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY && player.currentMediaItem?.mediaId == sourceMediaId) {
+                    sourceInstalling = false
+                }
                 if (state != Player.STATE_ENDED) return
                 ended = true
                 saveProgress()
@@ -324,7 +365,8 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
         player.addListener(listener)
         onDispose {
             startGen[0]++ // une réponse /play encore en vol arrêtera elle-même sa session
-            saveProgress()
+            // Instantané UI avant release ; les écritures/réessais survivent au scope Compose.
+            progress.close(progressSample())
             session?.play?.sessionId?.let { id -> GlobalScope.launch { client.stopSession(id) } }
             player.removeListener(listener)
             player.release()
@@ -332,23 +374,37 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
     }
 
     // Touche Accueil : la vue reste composée et la lecture continuait en fond ; on coupe dès ON_STOP.
+    // Exception : le lancement de VLC sort volontairement de l'app, on ne ferme pas le lecteur pour autant.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 player.pause()
-                stop()
+                if (!leavingForVlc) stop()
             }
+            // Retour d'une activité externe (VLC, sélecteur) : le lecteur reprend la main normale.
+            if (event == Lifecycle.Event.ON_RESUME) leavingForVlc = false
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Position enregistrée toutes les 10 s : alimente « Continuer à regarder » et la reprise.
+    // Filet de sécurité : un sélecteur translucide peut ne produire ni ON_STOP ni ON_RESUME ; le drapeau
+    // ne doit pas rester armé et empêcher la touche Accueil de couper la lecture plus tard.
+    LaunchedEffect(leavingForVlc) {
+        if (leavingForVlc) { delay(8_000); leavingForVlc = false }
+    }
+
+    // Seuil observé chaque seconde ; la reprise garde sa cadence réseau de 10 secondes.
     LaunchedEffect(session) {
+        var ticks = 0
         while (true) {
-            delay(10_000)
-            if (player.isPlaying) saveProgress()
+            delay(1_000)
+            ticks++
+            if (player.isPlaying) progressSample()?.let { sample ->
+                progress.observe(sample)
+                if (ticks % 10 == 0) progress.report(sample)
+            }
         }
     }
 
@@ -416,7 +472,11 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (controlsVisible && event.key != Key.MediaStop && event.key != Key.MediaPlayPause) return@onPreviewKeyEvent false
-                if (countdown != null || (ended && next != null)) return@onPreviewKeyEvent false
+                if (countdown != null || (ended && next != null)) {
+                    // ◀ annule l'enchaînement sans quitter le lecteur ; le reste va aux boutons de la carte.
+                    if (event.key == Key.DirectionLeft && countdown != null) { countdown = null; return@onPreviewKeyEvent true }
+                    return@onPreviewKeyEvent false
+                }
                 when (event.key) {
                     Key.Enter, Key.DirectionCenter -> { showControls(); true }
                     Key.MediaPlayPause -> { if (player.isPlaying) player.pause() else player.play(); showControls(); true }
@@ -452,6 +512,7 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
         if (controlsVisible && error == null && s != null) {
             ControlsPanel(
                 title = s.title,
+                mode = s.play.mode,
                 isPlaying = isPlaying,
                 positionMs = positionMs,
                 durationMs = (s.play.duration * 1000).toLong(),
@@ -463,6 +524,8 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
                 onSeek = { delta -> seekTo(current() + delta / 1000.0); positionMs = (current() * 1000).toLong(); interaction++ },
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play(); interaction++ },
                 onStop = ::stop,
+                onNext = if (s.kind == "episode") ::playNext else null,
+                nextUnavailable = noNext,
                 onOpenMenu = { menu -> trackMenu = menu },
                 onCloseMenu = { trackMenu = null },
                 onChooseTrack = { type, choice ->
@@ -497,7 +560,11 @@ fun PlayerScreen(vm: AppViewModel, screen: Screen.Player) {
                         }.getOrNull()
                         // Le NAS a pu ouvrir une session HLS (remux/conversion) : inutile pour VLC.
                         resp?.sessionId?.let { id -> client.stopSession(id) }
-                        resp?.signedUrl?.let { openInVlc(context, client.absolute(it)!!, s?.title.orEmpty(), absolute()) }
+                        resp?.signedUrl?.let { signed ->
+                            // Le drapeau n'est armé que si un lecteur démarre vraiment : sinon une touche
+                            // Accueil plus tard ne couperait plus la lecture.
+                            leavingForVlc = openInVlc(context, client.absolute(signed)!!, s?.title.orEmpty(), absolute())
+                        }
                     }
                 },
                 vlcAvailable = s != null,
@@ -573,7 +640,7 @@ private fun NextEpisodeCard(card: Card, countdown: Int?, onPlay: () -> Unit, onC
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(60); runCatching { focus.requestFocus() } }
     Column(
-        modifier.width(420.dp).background(Color(0xF215181C), RoundedCornerShape(16.dp)).padding(20.dp),
+        modifier.width(420.dp).background(Aurora.Coal.copy(alpha = 0.95f), RoundedCornerShape(16.dp)).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(if (countdown != null) "ÉPISODE SUIVANT DANS $countdown S" else "ÉPISODE SUIVANT", color = Aurora.Ash, fontSize = 13.sp, letterSpacing = 2.sp)
@@ -605,8 +672,8 @@ private fun ErrorPanel(message: String, onRetry: () -> Unit, onVlc: () -> Unit, 
     }
 }
 
-/** Repli VLC avec un lien signé (VLC ne transmet pas la session AURORA). */
-private fun openInVlc(context: android.content.Context, url: String, title: String, positionSec: Double) {
+/** Repli VLC avec un lien signé (VLC ne transmet pas la session AURORA). Vrai si un lecteur a démarré. */
+private fun openInVlc(context: android.content.Context, url: String, title: String, positionSec: Double): Boolean {
     val intent = Intent(Intent.ACTION_VIEW).apply {
         setDataAndTypeAndNormalize(Uri.parse(url), "video/*")
         putExtra("title", title)
@@ -614,8 +681,9 @@ private fun openInVlc(context: android.content.Context, url: String, title: Stri
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     val vlc = Intent(intent).setPackage("org.videolan.vlc")
-    runCatching { context.startActivity(vlc) }
+    return runCatching { context.startActivity(vlc) }
         .recoverCatching { context.startActivity(Intent.createChooser(intent, title)) }
+        .isSuccess
 }
 
 
@@ -623,6 +691,7 @@ private fun openInVlc(context: android.content.Context, url: String, title: Stri
 @Composable
 private fun ControlsPanel(
     title: String,
+    mode: String,
     isPlaying: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -634,6 +703,8 @@ private fun ControlsPanel(
     onSeek: (Long) -> Unit,
     onPlayPause: () -> Unit,
     onStop: () -> Unit,
+    onNext: (() -> Unit)?,
+    nextUnavailable: Boolean,
     onOpenMenu: (TrackMenu) -> Unit,
     onCloseMenu: () -> Unit,
     onChooseTrack: (Int, TrackChoice) -> Unit,
@@ -643,7 +714,7 @@ private fun ControlsPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xF2070A10))
+            .background(Aurora.Night.copy(alpha = 0.95f))
             .padding(horizontal = 48.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -662,14 +733,24 @@ private fun ControlsPanel(
             return@Column
         }
 
-        Text(
-            text = title,
-            color = Aurora.Paper,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = title,
+                color = Aurora.Paper,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            // Direct / remux / conversion : on comprend enfin pourquoi une lecture met du temps à démarrer.
+            Text(
+                text = modeLabel(mode),
+                color = Aurora.Ash,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 14.dp, bottom = 2.dp),
+            )
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -682,6 +763,7 @@ private fun ControlsPanel(
                 positionMs = positionMs,
                 durationMs = durationMs,
                 onSeek = onSeek,
+                onPlayPause = onPlayPause,
                 onLeave = { runCatching { playFocus.requestFocus() } },
                 modifier = Modifier.weight(1f).focusRequester(seekFocus),
             )
@@ -690,6 +772,14 @@ private fun ControlsPanel(
                 color = Aurora.Paper,
                 fontSize = 16.sp,
                 modifier = Modifier.width(80.dp).padding(start = 12.dp),
+            )
+            // Temps restant : l'information la plus utile pour savoir s'il reste 12 ou 48 minutes.
+            Text(
+                text = "−" + formatTime((durationMs - positionMs).coerceAtLeast(0)),
+                color = Aurora.Ash,
+                fontSize = 13.sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(74.dp).padding(start = 8.dp),
             )
         }
 
@@ -728,6 +818,10 @@ private fun ControlsPanel(
                 enabled = audioChoices.size > 1,
                 onClick = { onOpenMenu(TrackMenu.AUDIO) },
             )
+            if (onNext != null) {
+                Spacer(Modifier.width(18.dp))
+                RoundButton(glyph = "⏭", caption = if (nextUnavailable) "Dernier" else "Suivant", onClick = { if (!nextUnavailable) onNext() })
+            }
             Spacer(Modifier.width(18.dp))
             RoundButton(glyph = "■", caption = "Arrêter", onClick = onStop)
         }
@@ -830,6 +924,7 @@ private fun SeekBar(
     positionMs: Long,
     durationMs: Long,
     onSeek: (Long) -> Unit,
+    onPlayPause: () -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -850,6 +945,8 @@ private fun SeekBar(
                     Key.DirectionLeft -> { onSeek(-REWIND_MS); true }
                     Key.DirectionRight -> { onSeek(FORWARD_MS); true }
                     Key.DirectionDown -> { onLeave(); true }
+                    // OK sur la barre = lecture/pause (comme Plex), sans avoir à descendre d'un cran.
+                    Key.Enter, Key.DirectionCenter -> { onPlayPause(); true }
                     else -> false
                 }
             }
@@ -876,7 +973,7 @@ private fun SeekBar(
 }
 
 @Composable
-private fun RoundButton(
+internal fun RoundButton(
     glyph: String,
     caption: String,
     onClick: () -> Unit,
@@ -1056,7 +1153,7 @@ private fun seekBy(player: ExoPlayer, deltaMs: Long) {
     player.seekTo(target)
 }
 
-private fun formatTime(ms: Long): String {
+internal fun formatTime(ms: Long): String {
     if (ms <= 0) return "0:00"
     val totalSeconds = ms / 1000
     val hours = totalSeconds / 3600
@@ -1067,4 +1164,12 @@ private fun formatTime(ms: Long): String {
     } else {
         "%d:%02d".format(minutes, seconds)
     }
+}
+
+/** Mode de lecture décidé par le NAS, en clair dans le panneau. */
+private fun modeLabel(mode: String): String = when (mode) {
+    "direct" -> "Lecture directe"
+    "remux" -> "Remux du NAS"
+    "transcode" -> "Conversion du NAS"
+    else -> mode.replaceFirstChar { it.uppercase() }
 }

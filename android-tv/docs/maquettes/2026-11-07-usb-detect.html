@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>AURORA TV — disque USB sur le Formovie</title>
+<style>
+  :root{
+    --ink:#15110E; --night:#100D0B; --coal:#211B16; --graphite:#2E261F;
+    --paper:#F4EAD8; --mist:#EAD9B9; --ash:#CDB892; --accent:#D9B26F;
+    --gold:#FFE3A1; --deep:#B89A68; --cream:#F1E4CC; --line:#29D9B26F;
+    --seen:#4CC76B;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0B0908;color:var(--mist);font-family:var(--sans);padding:28px 24px 60px}
+  h1{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:26px;margin:0 0 4px}
+  .lede{color:var(--ash);font-size:13px;margin:0 0 26px}
+  .stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;margin-bottom:34px}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--ash);margin:8px 0 0;letter-spacing:.4px;max-width:960px}
+  figcaption b{color:var(--accent);font-weight:600}
+
+  .tv{width:960px;height:540px;background:var(--ink);position:relative;overflow:hidden;
+      display:flex;box-shadow:0 18px 50px #000a;border:1px solid #2a2219}
+  .veil{position:absolute;inset:0;background:
+      linear-gradient(90deg,var(--ink) 0%,transparent 60%),
+      linear-gradient(180deg,transparent 45%,var(--ink) 100%)}
+
+  /* ---------- sidebar ---------- */
+  .side{position:relative;z-index:2;width:212px;flex:0 0 212px;height:100%;padding:18px 14px;
+      background:linear-gradient(90deg,#100D0B,#100D0B);display:flex;flex-direction:column;overflow:hidden}
+  .brand{font-family:var(--serif);font-size:22px;letter-spacing:3px;color:var(--paper);padding-left:8px}
+  .rule{width:28px;height:1px;background:var(--accent);margin:6px 0 5px 8px}
+  .kicker{font-size:10px;letter-spacing:1.5px;color:var(--ash);padding-left:8px}
+  .nav{position:relative;display:flex;align-items:center;gap:7px;border-radius:6px;padding:7px 10px 7px 9px;
+      font-size:17px;font-family:var(--serif);color:var(--mist);margin:1px 0}
+  .nav .count{margin-left:auto;font-size:13px;font-family:var(--sans);color:var(--ash)}
+  .nav.boxed{background:#F4EAD814;margin-top:16px}
+  .nav.home{margin-top:14px}
+  .nav.sel{background:#D9B26F2b;color:var(--paper)}
+  .nav.sel::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--accent)}
+  .nav .dots{display:flex;gap:3px;margin-right:2px}
+  .nav .dots i{width:5px;height:5px;border-radius:50%;display:block}
+  .group{border:1px solid #F4EAD8a6;border-radius:8px;margin:1px 0 0;background:#F4EAD809;overflow:hidden}
+  .group .nav{border-radius:0}
+  .group .head{background:#F4EAD814;padding-top:8px;padding-bottom:8px}
+  .folder{padding-left:25px;font-size:12px;font-family:var(--sans);color:var(--ash);padding-top:6px;padding-bottom:6px}
+  .folder.sel{color:var(--paper);background:#D9B26F2b}
+  .folder .count{font-size:11px}
+  .side .spacer{flex:1}
+  .side .hline{height:1px;background:var(--line);margin:10px 0 8px}
+  .profil .sub{font-size:11px;color:var(--ash);display:block;margin-top:1px}
+
+  /* groupe USB */
+  .usb .drive{display:flex;align-items:center;gap:7px;padding-left:25px;font-size:12px;font-family:var(--sans);
+      color:var(--ash);padding-top:6px;padding-bottom:6px}
+  .usb .drive .count{font-size:11px}
+  .usb .led{width:7px;height:7px;border-radius:50%;background:var(--seen);box-shadow:0 0 8px #4CC76B88;flex:0 0 7px}
+  .usb .off{display:flex;align-items:center;gap:7px;padding-left:25px;font-size:11.5px;font-family:var(--sans);
+      color:#8f8272;padding-top:7px;padding-bottom:8px;font-style:italic}
+
+  /* ---------- contenu ---------- */
+  .content{position:relative;z-index:1;flex:1;min-width:0;padding:0}
+  .ctitle{font-family:var(--serif);font-weight:400;font-size:30px;color:var(--paper);margin:0;padding:22px 32px 0}
+  .csub{font-size:13px;color:var(--ash);margin:3px 32px 0;display:flex;align-items:center;gap:8px}
+  .csub .dot{width:5px;height:5px;border-radius:50%;background:var(--seen)}
+
+  .pathbar{display:flex;align-items:center;gap:6px;margin:18px 32px 0;padding:8px 14px;width:max-content;
+      background:#100D0Bd9;border:1px solid #D9B26F3d;border-radius:9px;font-size:13px}
+  .pathbar .seg{color:var(--ash)}
+  .pathbar .seg.on{color:var(--paper);font-family:var(--serif)}
+  .pathbar .sep{color:var(--deep)}
+
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:28px 22px;padding:22px 32px}
+
+  /* tuile dossier */
+  .tile{position:relative;border-radius:6px;cursor:default}
+  .tile .art{position:relative;border-radius:6px;border:1px solid #ffffff10;height:124px;
+      background:linear-gradient(150deg,#3a2f24,#232a2b 60%,#15181a);display:grid;place-items:center}
+  .tile .art .glyph{font-size:34px;opacity:.9;filter:drop-shadow(0 2px 4px #0008)}
+  .tile .art.folder{background:linear-gradient(150deg,#2b3640,#1d262c 70%,#14191c)}
+  .tile .name{font-size:12.5px;color:var(--mist);margin-top:8px;white-space:nowrap;overflow:hidden;
+      text-overflow:ellipsis;font-family:var(--serif);font-size:14px}
+  .tile .meta{font-size:11px;color:var(--ash);margin-top:2px}
+  .tile.focused .art{outline:2px solid var(--gold);outline-offset:2px;box-shadow:0 0 0 7px #D9B26F3d,0 0 26px -6px #D9B26F99}
+  .tile.focused .name{color:var(--gold)}
+
+  /* vidéo sans vignette : cadre façon affiche */
+  .tile .art .filmstrip{position:absolute;inset:8px;border:1px solid #ffffff18;border-radius:3px;
+      display:grid;place-items:center;font-size:26px;color:var(--ash)}
+
+  /* ---------- écran autorisation ---------- */
+  .sheet{position:absolute;inset:0;display:grid;place-items:center;background:#0B0908cc;z-index:5}
+  .dialog{width:560px;background:var(--coal);border:1px solid #D9B26F3d;border-radius:14px;padding:26px 28px;
+      box-shadow:0 30px 80px #000}
+  .dialog .eyebrow{font-size:11px;letter-spacing:2.6px;color:var(--accent);font-weight:600;text-transform:uppercase}
+  .dialog h2{font-family:var(--serif);font-weight:400;font-size:26px;color:var(--paper);margin:8px 0 0}
+  .dialog p{font-size:13.5px;line-height:20px;color:var(--mist);margin:12px 0 0}
+  .dialog p b{color:var(--accent)}
+  .btnrow{display:flex;gap:12px;margin-top:22px}
+  .btn{font-size:14px;padding:11px 22px;border-radius:7px;font-weight:600}
+  .btn.primary{background:var(--cream);color:var(--ink)}
+  .btn.ghost{background:#D9B26F24;color:var(--paper)}
+  .btn.focus{outline:2px solid var(--gold);outline-offset:2px}
+
+  /* ---------- planche ---------- */
+  .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:960px}
+  .card{background:#171310;border:1px solid #2a2219;border-radius:10px;padding:14px}
+  .card h3{margin:0 0 4px;font-family:var(--serif);font-weight:400;color:var(--paper);font-size:16px}
+  .card p{margin:0 0 12px;font-size:12px;color:var(--ash);line-height:17px}
+  .card .tile{margin:0}
+  .legend{font-size:11.5px;color:var(--ash);margin-top:9px}
+  .legend b{color:var(--paper);font-weight:500}
+
+  .changes{max-width:960px;background:#171310;border:1px solid #2a2219;border-radius:10px;padding:18px 20px}
+  .changes h3{font-family:var(--serif);font-weight:400;color:var(--paper);font-size:18px;margin:0 0 10px}
+  .changes table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .changes td{padding:7px 6px;border-top:1px solid #2a2219;vertical-align:top;color:var(--mist)}
+  .changes tr:first-child td{border-top:0}
+  .tag{font-size:10px;letter-spacing:.5px;padding:2px 7px;border-radius:20px;white-space:nowrap;font-weight:600}
+  .done{background:#4CC76B26;color:#7ede97;border:1px solid #4CC76B59}
+  .todo{background:#D9B26F26;color:var(--gold);border:1px solid #D9B26F59}
+  .ask{background:#F2B36620;color:#F2B366;border:1px solid #F2B36659}
+  .changes .k{width:26px;color:var(--ash)}
+
+  .note{max-width:960px;font-size:12px;color:var(--ash);margin:14px 0 0;line-height:18px}
+  .note b{color:var(--accent)}
+  .note ul{margin:8px 0 0;padding-left:18px}
+  .note li{margin:4px 0}
+</style>
+</head>
+<body>
+
+<h1>Disque USB branché sur le Formovie — détection et lecture locale</h1>
+<p class="lede">AURORA TV · Android TV 960 × 540 dp · maquette avant modification. Rien n’est encore touché au code.</p>
+
+<div class="stage">
+
+  <!-- ÉCRAN 1 : disque branché, navigateur de fichiers ouvert -->
+  <figure>
+    <div class="tv">
+      <div class="veil"></div>
+      <aside class="side">
+        <div class="brand">AURORA</div>
+        <div class="rule"></div>
+        <div class="kicker">CINÉMATHÈQUE PRIVÉE</div>
+        <div class="nav boxed">Rechercher</div>
+        <div class="nav home">Accueil</div>
+        <div class="group">
+          <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Films<span class="count">412</span></div>
+          <div class="nav folder">Films<span class="count">398</span></div>
+          <div class="nav folder">Films en cours<span class="count">9</span></div>
+          <div class="nav all" style="padding-bottom:8px">Tous les dossiers</div>
+        </div>
+        <div class="group" style="margin-top:10px">
+          <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Séries<span class="count">38</span></div>
+          <div class="nav folder">Séries<span class="count">31</span></div>
+          <div class="nav folder">Séries en cours<span class="count">4</span></div>
+          <div class="nav all" style="padding-bottom:8px">Tous les dossiers</div>
+        </div>
+        <div class="group usb" style="margin-top:10px">
+          <div class="nav head sel"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Disque USB</div>
+          <div class="drive sel"><span class="led"></span>SAMSUNG T7<span class="count">24 vidéos</span></div>
+        </div>
+        <div class="spacer"></div>
+        <div class="hline"></div>
+        <div class="nav profil" style="flex-direction:column;align-items:flex-start;padding-left:9px">Profil<span class="sub">Synology DS920</span></div>
+      </aside>
+
+      <div class="content">
+        <div class="ctitle">Disque USB</div>
+        <div class="csub"><span class="dot"></span>SAMSUNG T7 · 1,8 To · 24 vidéos</div>
+        <div class="pathbar">
+          <span class="seg on">Racine du disque</span><span class="sep">›</span><span class="seg">Films</span>
+        </div>
+        <div class="grid">
+          <div class="tile">
+            <div class="art folder"><div class="glyph">🗁</div></div>
+            <div class="name">Films</div><div class="meta">18 éléments</div>
+          </div>
+          <div class="tile">
+            <div class="art folder"><div class="glyph">🗁</div></div>
+            <div class="name">Séries</div><div class="meta">6 éléments</div>
+          </div>
+          <div class="tile">
+            <div class="art folder"><div class="glyph">🗁</div></div>
+            <div class="name">Vidéos famille</div><div class="meta">4 éléments</div>
+          </div>
+          <div class="tile focused">
+            <div class="art"><div class="filmstrip">🎬</div></div>
+            <div class="name">Inception (2010).mkv</div><div class="meta">2 h 28 · 8,2 Go</div>
+          </div>
+          <div class="tile">
+            <div class="art"><div class="filmstrip">🎬</div></div>
+            <div class="name">Dune (2021).mkv</div><div class="meta">2 h 35 · 11,4 Go</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>1.</b> Disque branché : la colonne de gauche gagne un groupe <b>« Disque USB »</b> (pastilles macOS + nom du volume). À droite, un navigateur de fichiers dans le style Cinémathèque — dossiers d’abord, puis vidéos avec vignette et durée/taille. Focus crème-or identique aux affiches.</figcaption>
+  </figure>
+
+  <!-- ÉCRAN 2 : premier branchement → autorisation d'accès -->
+  <figure>
+    <div class="tv">
+      <div class="veil"></div>
+      <aside class="side">
+        <div class="brand">AURORA</div>
+        <div class="rule"></div>
+        <div class="kicker">CINÉMATHÈQUE PRIVÉE</div>
+        <div class="nav boxed">Rechercher</div>
+        <div class="nav home">Accueil</div>
+        <div class="group">
+          <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Films<span class="count">412</span></div>
+          <div class="nav folder">Films<span class="count">398</span></div>
+        </div>
+        <div class="group" style="margin-top:10px">
+          <div class="nav head"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Séries<span class="count">38</span></div>
+          <div class="nav folder">Séries<span class="count">31</span></div>
+        </div>
+        <div class="group usb" style="margin-top:10px">
+          <div class="nav head sel"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Disque USB</div>
+          <div class="drive sel"><span class="led"></span>SAMSUNG T7</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="hline"></div>
+        <div class="nav profil" style="flex-direction:column;align-items:flex-start;padding-left:9px">Profil<span class="sub">Synology DS920</span></div>
+      </aside>
+
+      <div class="content">
+        <div class="ctitle">Disque USB</div>
+        <div class="csub"><span class="dot"></span>SAMSUNG T7 · 1,8 To</div>
+        <div class="sheet">
+          <div class="dialog">
+            <div class="eyebrow">PREMIER BRANCHEMENT</div>
+            <h2>Autoriser l’accès au disque</h2>
+            <p>Android demande de choisir le disque pour laisser <b>Aurora</b> lire les vidéos qu’il contient. Une seule fois, mémorisé pour ce volume.</p>
+            <div class="btnrow">
+              <div class="btn primary focus">Choisir le disque</div>
+              <div class="btn ghost">Plus tard</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>2.</b> Premier branchement : un panneau explique le sélecteur système <b>« Choisir le disque »</b> (ACTION_OPEN_DOCUMENT_TREE), qui s’ouvre une seule fois et reste mémorisé. Sans cette autorisation, Android interdit la lecture du contenu.</figcaption>
+  </figure>
+
+</div>
+
+<!-- Planche : états de la sidebar + tuiles -->
+<h1 style="font-size:20px;margin-bottom:4px">États et tuiles</h1>
+<p class="lede" style="margin-bottom:14px">Ce que montre la colonne de gauche et le navigateur selon la situation.</p>
+<div class="board" style="margin-bottom:30px">
+  <div class="card">
+    <h3>Aucun disque branché</h3>
+    <p>Le groupe reste visible mais annonce l’absence de disque ; impossible de le sélectionner.</p>
+    <div class="group usb" style="margin:0">
+      <div class="nav head" style="margin:0"><span class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></span>Disque USB</div>
+      <div class="off">Aucun disque branché</div>
+    </div>
+    <div class="legend">Le branchement à chaud est détecté sans redémarrer l’app.</div>
+  </div>
+  <div class="card">
+    <h3>Dossier (tuile)</h3>
+    <p>Un dossier s’ouvre sur le chemin en cours ; ◀ revient au dossier parent.</p>
+    <div class="tile">
+      <div class="art folder"><div class="glyph">🗁</div></div>
+      <div class="name">Films</div><div class="meta">18 éléments</div>
+    </div>
+    <div class="legend">Focus crème-or comme les affiches ; le nom passe en or.</div>
+  </div>
+  <div class="card">
+    <h3>Vidéo (tuile)</h3>
+    <p>OK lance la lecture directement (ExoPlayer, fichier local). Vignette extraite du fichier si possible.</p>
+    <div class="tile">
+      <div class="art"><div class="filmstrip">🎬</div></div>
+      <div class="name">Inception (2010).mkv</div><div class="meta">2 h 28 · 8,2 Go</div>
+    </div>
+    <div class="legend">Sans vignette : cadre façon affiche + glyphe.</div>
+  </div>
+  <div class="card">
+    <h3>Vignette extraite</h3>
+    <p>Si le fichier le permet, on extrait une image réelle (MediaMetadataRetriever) pour la vignette.</p>
+    <div class="tile">
+      <div class="art" style="background:
+        radial-gradient(70% 90% at 30% 25%, #7b6a45 0%, #3a3026 50%, transparent 80%),
+        linear-gradient(150deg,#3a2f24,#232a2b 60%,#15181a)"><div class="filmstrip" style="border:0;font-size:0"></div></div>
+      <div class="name">Dune (2021).mkv</div><div class="meta">2 h 35 · 11,4 Go</div>
+    </div>
+    <div class="legend">Affiché quand l’extraction réussit.</div>
+  </div>
+  <div class="card">
+    <h3>Disque retiré pendant la lecture</h3>
+    <p>Si le disque est débranché en cours de lecture, on revient au navigateur avec un état clair.</p>
+    <div style="background:var(--coal);border:1px solid var(--line);border-radius:10px;padding:12px">
+      <div style="font-size:11px;letter-spacing:1.6px;color:var(--ash)">DISQUE RETIRÉ</div>
+      <div style="font-family:var(--serif);font-size:15px;color:var(--paper);margin-top:4px">Le disque SAMSUNG T7 a été débranché.</div>
+      <div style="font-size:12px;color:var(--ash);margin-top:5px">Rebranchez-le pour continuer la lecture.</div>
+    </div>
+    <div class="legend">Jamais de télécommande sans cible : un bouton « OK » referme.</div>
+  </div>
+  <div class="card">
+    <h3>Lecture locale</h3>
+    <p>Le lecteur ExoPlayer existant lit le fichier local sans passer par le NAS ; panneau, pause et temps restant inchangés.</p>
+    <div style="background:#211B16f2;border-radius:10px;padding:12px">
+      <div style="font-family:var(--serif);font-size:16px;color:var(--paper)">Inception (2010).mkv</div>
+      <div style="font-size:11px;color:var(--accent);margin-top:3px">LOCAL · USB · DIRECT</div>
+      <div class="btnrow" style="margin-top:10px">
+        <span style="background:var(--cream);color:var(--ink);border-radius:5px;padding:4px 12px;font-size:11px;font-weight:600">⏸</span>
+        <span style="background:#D9B26F24;color:var(--paper);border-radius:5px;padding:4px 12px;font-size:11px">+30 s</span>
+        <span style="background:#D9B26F24;color:var(--paper);border-radius:5px;padding:4px 12px;font-size:11px">Sous-titres</span>
+      </div>
+    </div>
+    <div class="legend">Pas de conversion/remux NAS : la vidéo est lue telle quelle si la box sait la décoder.</div>
+  </div>
+</div>
+
+<div class="changes">
+  <h3>Ce que je touche — et ce qui est déjà en place</h3>
+  <table>
+    <tr><td class="k">1</td><td>Détection du volume USB branché (StorageManager), à chaud, sans redémarrer.</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">2</td><td>Groupe « Disque USB » dans la colonne de gauche, comme source locale (nom du volume, pastille verte).</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">3</td><td>Autorisation d’accès au disque (sélecteur système), une seule fois, mémorisée par volume.</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">4</td><td>Navigateur de fichiers : dossiers puis vidéos, fil d’Ariane, ◀ = dossier parent, grille de 5 tuiles.</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">5</td><td>Lecture locale directe des vidéos via le lecteur ExoPlayer existant (sans NAS).</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">6</td><td>Vignette extraite du fichier (MediaMetadataRetriever) ; repli façon affiche si échec.</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">7</td><td>États : aucun disque, disque retiré pendant la lecture, erreur d’accès → bouton focusable.</td><td class="a" style="text-align:right"><span class="tag todo">à faire</span></td></tr>
+    <tr><td class="k">8</td><td>Navigation, focus, fond d’écran, dossiers NAS, reprise, vu/non vu : <b>inchangés</b>.</td><td class="a" style="text-align:right"><span class="tag done">déjà en place</span></td></tr>
+  </table>
+</div>
+
+<p class="note"><b>Deux questions avant de coder :</b>
+<ul>
+  <li><b>Pochettes / métadonnées :</b> vous avez répondu « les deux / je ne sais pas encore ». Je propose de démarrer <b>simple</b> — navigateur de fichiers, vignette extraite de la vidéo, aucune base de données — puis d’enrichir plus tard (affiches TMDB/IMDb, reprise, vu/non vu) si vous le souhaitez. C’est la version représentée ici.</li>
+  <li><b>Emplacement :</b> je place le groupe « Disque USB » <b>sous Séries, au-dessus de Profil</b>. Je peux aussi le mettre en tête (sous « Accueil ») ou en pied près de Profil. Confirmez-vous cet emplacement ?</li>
+</ul>
+</p>
+
+</body>
+</html>

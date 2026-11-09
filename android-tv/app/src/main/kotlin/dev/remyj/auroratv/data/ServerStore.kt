@@ -30,6 +30,7 @@ class ServerStore(private val context: Context) {
     fun remove(id: String) {
         prefs.edit().putString(KEY_SERVERS, json.encodeToString(serializer, servers().filter { it.id != id })).apply()
         tokens(id).clear()
+        BackgroundStore(context).remove(id)
         if (lastServerId() == id) prefs.edit().remove(KEY_LAST).apply()
     }
 

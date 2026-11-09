@@ -7,13 +7,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, init?: RequestInit): Promise<T> {
+  const multipart = body instanceof FormData
   let resp: Response
   try {
     resp = await fetch('/api/v1' + path, {
       method,
       credentials: 'same-origin',
-      headers: { 'X-Aurora': '1', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: { 'X-Aurora': '1', ...(body !== undefined && !multipart ? { 'Content-Type': 'application/json' } : {}) },
+      body: multipart ? body : body !== undefined ? JSON.stringify(body) : undefined,
       ...init,
     })
   } catch {
@@ -43,6 +44,7 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body ?? {}),
   del: <T>(path: string) => request<T>('DELETE', path),
+  upload: <T>(path: string, body: FormData) => request<T>('POST', path, body),
   /** Envoi qui survit à la fermeture de l'onglet (sauvegarde de position). */
   beacon(path: string, body: unknown) {
     fetch('/api/v1' + path, {

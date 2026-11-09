@@ -90,7 +90,7 @@ func (e *Enricher) enrichKind(ctx context.Context, c *Client, libID int64, itemK
 			return ctx.Err()
 		}
 		report(Progress{Done: i, Total: len(list), Current: t.title})
-		id, state, err := e.match(ctx, c, &en, tmdbKind, t.title, t.year)
+		id, state, tmdbAmbiguous, err := e.match(ctx, c, &en, tmdbKind, t.title, t.year)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
@@ -104,6 +104,31 @@ func (e *Enricher) enrichKind(ctx context.Context, c *Client, libID int64, itemK
 			continue
 		}
 		if id == 0 {
+			if tmdbAmbiguous {
+				e.DB.ExecContext(ctx, `UPDATE items SET match_state='ambiguous', metadata_at=? WHERE id=? AND match_state IN ('local','failed')`, time.Now().Unix(), t.id)
+				continue // une liste IMDb plus courte ne lève pas une ambiguïté TMDB connue
+			}
+			results, imdbErr := c.searchIMDb(ctx, tmdbKind, t.title, t.year)
+			if imdbErr != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				if firstErr == nil {
+					firstErr = imdbErr
+				}
+				continue // une panne n'est pas une absence : laisser l'œuvre à retenter
+			}
+			candidate, imdbState := chooseIMDb(results, t.title, t.year)
+			if candidate != nil {
+				_, err = e.ApplyIMDb(ctx, c, t.id, candidate.IMDbID, "matched")
+				if err != nil && firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
+			if len(results) > 0 {
+				state = imdbState
+			}
 			e.DB.ExecContext(ctx, `UPDATE items SET match_state=?, metadata_at=? WHERE id=? AND match_state IN ('local','failed')`,
 				state, time.Now().Unix(), t.id)
 			continue
@@ -127,18 +152,25 @@ func (e *Enricher) enrichKind(ctx context.Context, c *Client, libID int64, itemK
 // match cherche la fiche d'une œuvre : langue configurée, puis anglais (fichiers nommés avec le titre
 // original), puis titre complet quand l'« année » en fait partie (« Wonder Woman 1984 »). Même règle de
 // prudence à chaque étape (Choose).
-func (e *Enricher) match(ctx context.Context, c *Client, en **Client, tmdbKind, title string, year int) (int, string, error) {
+func (e *Enricher) match(ctx context.Context, c *Client, en **Client, tmdbKind, title string, year int) (int, string, bool, error) {
 	results, err := c.Search(ctx, tmdbKind, title, 0)
 	if err != nil {
-		return 0, "", err
+		return 0, "", false, err
 	}
 	id, state := Choose(results, title, year)
+	if id == 0 && hasAdmissibleExact(results, title, year) {
+		return 0, "ambiguous", true, nil
+	}
 	if id == 0 && !strings.HasPrefix(c.Language, "en") {
 		if *en == nil {
 			*en = c.WithLanguage("en-US")
 		}
 		if res, err := (*en).Search(ctx, tmdbKind, title, 0); err == nil {
-			if id2, state2 := Choose(res, title, year); id2 != 0 || state == "failed" {
+			id2, state2 := Choose(res, title, year)
+			if id2 == 0 && hasAdmissibleExact(res, title, year) {
+				return 0, "ambiguous", true, nil
+			}
+			if id2 != 0 || state == "failed" {
 				id, state = id2, state2
 			}
 		}
@@ -148,10 +180,24 @@ func (e *Enricher) match(ctx context.Context, c *Client, en **Client, tmdbKind, 
 		if res, err := c.Search(ctx, tmdbKind, full, 0); err == nil {
 			if id2, _ := Choose(res, full, 0); id2 != 0 {
 				id, state = id2, "matched"
+			} else if hasAdmissibleExact(res, full, 0) {
+				return 0, "ambiguous", true, nil
 			}
 		}
 	}
-	return id, state, nil
+	return id, state, false, nil
+}
+
+// Seuls les titres exacts à année admissible peuvent créer une ambiguïté établie. Des voisins TMDB
+// sans correspondance exacte ne doivent pas empêcher le dernier recours IMDb.
+func hasAdmissibleExact(results []SearchResult, title string, year int) bool {
+	norm := parse.Normalize(title)
+	for _, r := range results {
+		if (parse.Normalize(r.Title) == norm || parse.Normalize(r.OriginalTitle) == norm) && (year == 0 || absYear(r.Year-year) <= 1) {
+			return true
+		}
+	}
+	return false
 }
 
 // Choose applique la règle de prudence : on n'associe automatiquement que si le titre correspond
@@ -245,7 +291,7 @@ func (e *Enricher) ApplyMovie(ctx context.Context, c *Client, itemID int64, tmdb
 		return 0, err
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE items SET title=?, sort_title=?, original_title=?, year=?, overview=?, tagline=?,
-		runtime=?, genres=?, rating=?, rating_source=?, content_rating=?, min_age=?, tmdb_id=?, poster=?, backdrop=?, trailer=?,
+		runtime=?, genres=?, rating=?, rating_source=?, content_rating=?, min_age=?, imdb_id=NULL, tmdb_id=?, poster=?, backdrop=?, trailer=?,
 		match_state=?, metadata_at=?, updated_at=? WHERE id=?`,
 		d.Title, parse.SortTitle(d.Title), d.OriginalTitle, year, d.Overview, d.Tagline, runtime, genresJSON(d.Genres),
 		rating, ratingSrc, cert, nullInt(age), tmdbID, poster, backdrop, d.Trailer(), state, time.Now().Unix(), time.Now().Unix(), target)
@@ -439,7 +485,7 @@ func (e *Enricher) ApplySeries(ctx context.Context, c *Client, itemID int64, tmd
 	}
 	now := time.Now().Unix()
 	_, err = tx.ExecContext(ctx, `UPDATE items SET title=?, sort_title=?, original_title=?, year=?, overview=?, tagline=?,
-		runtime=?, genres=?, rating=?, rating_source=?, content_rating=?, min_age=?, status=?, tmdb_id=?, poster=?, backdrop=?,
+		runtime=?, genres=?, rating=?, rating_source=?, content_rating=?, min_age=?, status=?, imdb_id=NULL, tmdb_id=?, poster=?, backdrop=?,
 		match_state=?, metadata_at=?, updated_at=? WHERE id=?`,
 		d.Name, parse.SortTitle(d.Name), d.OriginalName, year, d.Overview, d.Tagline, runtime, genresJSON(d.Genres),
 		rating, ratingSrc, cert, nullInt(age), seriesStatus(d.Status), tmdbID, poster, backdrop, state, now, now, target)

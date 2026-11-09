@@ -14,7 +14,7 @@ aucun compte en ligne.
   limité, reprise après interruption, journal des erreurs.
 - Identification par les noms (films, `S01E03`, `1x03`, épisodes doubles, spéciaux, dossiers « Saison N »),
   versions regroupées (1080p/4K/éditions), correction manuelle.
-- Métadonnées TMDB (français, repli anglais), affiches/fonds/portraits en cache local, sagas, classifications.
+- Métadonnées TMDB (français, repli anglais), puis recherche IMDb automatique en secours ; choix manuel des titres proches, y compris sans fiche TMDB. Liens TMDB/IMDb acceptés, affiches en cache local, sagas et classifications via TMDB.
 - « Retirer de Continuer à regarder » (×  sur la carte, appui long sur la TV) : sans toucher au fichier ni à la
   progression ; l'œuvre revient si on la relance.
 - Accueil personnalisable (reprise, prochain épisode, récents, favoris, ma liste, collections, non vus, suggestions).
@@ -23,7 +23,7 @@ aucun compte en ligne.
 - Dossiers jamais mélangés : une rangée d'accueil et un onglet par dossier (« Séries en cours », « Séries 2021 »…).
 - Bibliothèques : tri, filtres (genre, année, résolution, HDR, langue, réalisateur, vu, favoris), 3 vues.
 - Fiches film/série immersives, informations techniques complètes, distribution.
-- Recherche locale instantanée, insensible aux accents, tolérante aux fautes.
+- Recherche locale insensible aux accents : pluriel manquant, lettre oubliée ou inversée ; résultats proches classés par pertinence.
 - Lecteur : Direct Play prioritaire, remux sans réencodage, conversion H.264 limitée ; pistes audio,
   sous-titres (internes, externes, incrustés), chapitres, vitesse, plein écran, raccourcis clavier,
   reprise, enchaînement des épisodes, reprise automatique après coupure réseau.
@@ -31,8 +31,12 @@ aucun compte en ligne.
   bibliothèques autorisées, contrôle parental.
 - Administration : tableau de bord, bibliothèques, identification, utilisateurs, réglages, historique,
   sauvegardes/restauration, diagnostic, journal.
+- **Galerie de fonds pour les applications** : import de JPEG/PNG dans Administration › Réglages,
+  images stockées sur le serveur et incluses dans les sauvegardes. Grandes images adaptées automatiquement jusqu’en 4K. Chaque client peut consulter la
+  galerie et récupérer l’image de son choix via l’[API fonds d’écran](docs/API_FONDS.md).
 - **Association d'une TV par code** (comme Plex) : la TV affiche un code, on le valide sur `http://<nas>:8890/link`
-  depuis un navigateur déjà connecté — aucun mot de passe à taper à la télécommande.
+  depuis un navigateur déjà connecté — aucun mot de passe à taper à la télécommande. Les applications TV
+  sans domaine Web peuvent demander un jeton de session dédié, sans changer le protocole des clients existants.
 - **Client Android TV** (Xiaomi Box), projet séparé `~/Documents/AndroidStudio/AuroraTV` : même contenu,
   saisie de l'IP du ou des Synology, lecture ExoPlayer (directe/remux/conversion choisie par le NAS selon
   les décodeurs de la box), reprise, épisode suivant, repli VLC par lien signé. Testé sur émulateur
@@ -53,7 +57,7 @@ aucun compte en ligne.
 
 ## Construire le paquet
 ```bash
-scripts/build-spk.sh 0011   # numéro de build supérieur au précédent (dernier publié : 0010)
+scripts/build-spk.sh 0014   # version 0.1.11, adaptation automatique des grandes images
 ```
 Résultat : `build/AURORA-<version>-<build>.spk` (≈ 63 Mo, ffmpeg/ffprobe statiques inclus), vérifié par
 `scripts/verify-spk.sh`. **Pas encore installé sur un vrai DS1825+** : voir la recette dans docs/TESTS.md.

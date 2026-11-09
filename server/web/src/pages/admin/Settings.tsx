@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api, ApiError } from '../../lib/api'
 import { useApi } from '../../lib/hooks'
 import { Button, ErrorState, Field, Notice, PageLoader, Select, Toggle, useToast } from '../../components/ui'
+import { BackgroundsPanel } from './BackgroundsPanel'
 
 interface S { tmdbConfigured: boolean; language: string; scanIntervalHours: number; probeJobs: number; maxTranscodes: number; allow4kTranscode: boolean; watchEnabled: boolean }
 
@@ -29,6 +30,7 @@ export function SettingsPage() {
   return (
     <div className="max-w-3xl space-y-8">
       {error && <Notice tone="error">{error}</Notice>}
+      <BackgroundsPanel />
       <Panel title="Métadonnées">
         <p className="text-sm text-ash">État : {x.tmdbConfigured ? <span className="text-aurora">clé TMDB configurée</span> : 'mode local (noms de fichiers et images extraites des vidéos)'}.</p>
         <div className="flex flex-wrap items-end gap-3">

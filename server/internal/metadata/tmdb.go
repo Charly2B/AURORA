@@ -29,6 +29,7 @@ type Client struct {
 	HTTP     *http.Client
 	BaseURL  string // surchargé dans les tests
 	ImageURL string
+	IMDbURL  string // suggestions IMDb ; surchargé dans les tests
 
 	pacer *pacer // partagé entre les copies (WithLanguage) : une seule cadence vers TMDB
 }
@@ -45,7 +46,7 @@ func NewClient(apiKey, language, imageDir string) *Client {
 	}
 	return &Client{APIKey: strings.TrimSpace(apiKey), Language: language, ImageDir: imageDir,
 		HTTP: &http.Client{Timeout: 20 * time.Second}, BaseURL: "https://api.themoviedb.org/3",
-		ImageURL: "https://image.tmdb.org/t/p", pacer: &pacer{}}
+		ImageURL: "https://image.tmdb.org/t/p", IMDbURL: "https://v3.sg.media-imdb.com/suggestion/x", pacer: &pacer{}}
 }
 
 // WithLanguage renvoie une copie dans une autre langue, qui partage connexion et cadence.
@@ -59,13 +60,27 @@ func (c *Client) WithLanguage(lang string) *Client {
 var ErrNoKey = errors.New("aucune clé TMDB configurée")
 
 // pace : au plus ~8 requêtes/s, bien sous la limite TMDB, pour rester discret.
-func (c *Client) pace() {
+func (c *Client) pace(ctx context.Context) error {
 	c.pacer.mu.Lock()
 	defer c.pacer.mu.Unlock()
 	if d := 125*time.Millisecond - time.Since(c.pacer.last); d > 0 {
-		time.Sleep(d)
+		if err := metadataWait(ctx, d); err != nil {
+			return err
+		}
 	}
 	c.pacer.last = time.Now()
+	return ctx.Err()
+}
+
+func metadataWait(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (c *Client) get(ctx context.Context, path string, q url.Values, out any) error {
@@ -87,7 +102,9 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 	req.URL.RawQuery = q.Encode()
 	req.Header.Set("Accept", "application/json")
 	for attempt := 0; ; attempt++ {
-		c.pace()
+		if err := c.pace(ctx); err != nil {
+			return err
+		}
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
 			return fmt.Errorf("TMDB injoignable : %w", stripURL(err))
@@ -99,7 +116,9 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 		}
 		switch {
 		case resp.StatusCode == http.StatusTooManyRequests && attempt < 3:
-			time.Sleep(time.Duration(2<<attempt) * time.Second)
+			if err := metadataWait(ctx, time.Duration(2<<attempt)*time.Second); err != nil {
+				return err
+			}
 			continue
 		case resp.StatusCode == http.StatusUnauthorized:
 			return errors.New("clé TMDB refusée (401)")
@@ -133,6 +152,8 @@ func (c *Client) Validate(ctx context.Context) error {
 
 // SearchResult : candidat de correspondance.
 type SearchResult struct {
+	imdbTitle     string  // alias de la suggestion, conservé après récupération du titre TMDB localisé
+	IMDbID        string  `json:"imdbId,omitempty"`
 	ID            int     `json:"id"`
 	Title         string  `json:"title"`
 	OriginalTitle string  `json:"originalTitle"`

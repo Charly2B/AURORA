@@ -32,3 +32,8 @@ Incrémenter le numéro de build à chaque nouvelle publication : DSM s'en sert 
 ## Règles du dépôt
 Voir la section « Interdits » d'[ARCHITECTURE.md](../ARCHITECTURE.md). Toute évolution du schéma :
 nouveau fichier `internal/db/migrations/000N_….sql`.
+
+Métadonnées : `Client.Search` interroge seulement TMDB ; `SearchCandidates` ajoute la recherche souple
+et le secours IMDb pour l'administration. Les candidats IMDb sans équivalent TMDB ont `id: 0` et un
+`imdbId` ; `/admin/items/{id}/match` reçoit alors `{ "imdbId": "tt…" }` au lieu de `{ "tmdbId": … }`.
+Les contrats de catalogue/recherche/fiches consommés par Android TV restent identiques.

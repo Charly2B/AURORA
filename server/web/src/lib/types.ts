@@ -210,3 +210,15 @@ export interface PlayResponse {
   subtitles: (Subtitle & { label: string; external: boolean; url?: string })[]
   burnedSubtitle: boolean
 }
+/** Images hébergées par le serveur ; la sélection est propre à chaque application cliente. */
+export interface BackgroundImage {
+  id: string
+  name: string
+  url: string
+  width: number
+  height: number
+  size: number
+  createdAt: number
+}
+
+export interface BackgroundGallery { images: BackgroundImage[] }

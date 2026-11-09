@@ -106,7 +106,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-interface Candidate { id: number; title: string; originalTitle: string; year: number; overview: string; poster?: string }
+interface Candidate { id: number; imdbId?: string; title: string; originalTitle: string; year: number; overview: string; poster?: string }
+const candidateKey = (candidate: Candidate) => candidate.id > 0 ? `tmdb:${candidate.id}` : `imdb:${candidate.imdbId}`
 
 /** Correction d'identification (administrateur) : choisir la bonne fiche TMDB, ou corriger titre/année. */
 export function FixMatch({ item, onDone }: { item: Detail; onDone: (newId: number) => void }) {
@@ -115,7 +116,9 @@ export function FixMatch({ item, onDone }: { item: Detail; onDone: (newId: numbe
   const [year, setYear] = useState(item.year ? String(item.year) : '')
   const [results, setResults] = useState<Candidate[]>()
   const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState<number | 'search' | 'manual'>()
+  const [busy, setBusy] = useState<string>()
+  const [link, setLink] = useState('')
+  const [linked, setLinked] = useState<Candidate>()
   const [title, setTitle] = useState(item.title)
   const toast = useToast()
   const search = async () => {
@@ -128,13 +131,26 @@ export function FixMatch({ item, onDone }: { item: Detail; onDone: (newId: numbe
     }
     setBusy(undefined)
   }
-  const pick = async (id: number) => {
-    setBusy(id)
+  const pick = async (candidate: Candidate) => {
+    setBusy(candidateKey(candidate))
+    setError(undefined)
     try {
-      const r = await api.post<{ itemId: number }>(`/admin/items/${item.id}/match`, { tmdbId: id })
+      const r = await api.post<{ itemId: number }>(`/admin/items/${item.id}/match`, candidate.id > 0 ? { tmdbId: candidate.id } : { imdbId: candidate.imdbId })
       toast('ok', 'Identification corrigée et verrouillée')
       setOpen(false)
       onDone(r.itemId)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e))
+    }
+    setBusy(undefined)
+  }
+  // Lien TMDB ou IMDb collé quand la recherche ne trouve rien : aperçu d'abord, association sur « Associer ».
+  const checkLink = async () => {
+    setBusy('link')
+    setError(undefined)
+    setLinked(undefined)
+    try {
+      setLinked(await api.get<Candidate>(`/admin/items/${item.id}/resolve?url=${encodeURIComponent(link.trim())}`))
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
     }
@@ -171,8 +187,8 @@ export function FixMatch({ item, onDone }: { item: Detail; onDone: (newId: numbe
             <ul className="max-h-[46vh] overflow-y-auto space-y-2 -mx-1 px-1">
               {results.length === 0 && <li className="text-ash text-sm">Aucun résultat.</li>}
               {results.map((r) => (
-                <li key={r.id}>
-                  <button onClick={() => pick(r.id)} disabled={busy !== undefined}
+                <li key={candidateKey(r)}>
+                  <button onClick={() => pick(r)} disabled={busy !== undefined}
                     className={cx('w-full flex gap-4 text-left rounded-xl p-3 ring-1 ring-white/[0.06] hover:ring-aurora/50 hover:bg-white/[0.03]', item.tmdbId === r.id && 'ring-aurora/60')}>
                     <div className="w-14 aspect-[2/3] rounded bg-coal overflow-hidden shrink-0">{r.poster && <img src={r.poster} alt="" className="size-full object-cover" />}</div>
                     <div className="min-w-0">
@@ -180,12 +196,36 @@ export function FixMatch({ item, onDone }: { item: Detail; onDone: (newId: numbe
                       {r.originalTitle !== r.title && <div className="text-xs text-ash">{r.originalTitle}</div>}
                       <p className="text-xs text-ash line-clamp-2 mt-1">{r.overview}</p>
                     </div>
-                    {busy === r.id && <Spinner label="Application" />}
+                    {busy === candidateKey(r) && <Spinner label="Application" />}
                   </button>
                 </li>
               ))}
             </ul>
           )}
+          <div className="rounded-xl ring-2 ring-aurora/50 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-aurora/15 text-aurora text-xs px-2.5 py-0.5">Nouveau</span>
+              <span className="text-sm font-medium">Introuvable ? Collez un lien</span>
+            </div>
+            <div className="flex flex-wrap gap-3 items-end">
+              <Field label="Lien TMDB ou IMDb" value={link} onChange={(e) => { setLink(e.target.value); setLinked(undefined) }}
+                placeholder="https://www.themoviedb.org/tv/219937-hunter" className="flex-1 min-w-48" inputMode="url"
+                onKeyDown={(e) => e.key === 'Enter' && link.trim() && checkLink()} />
+              <Button busy={busy === 'link'} onClick={checkLink} disabled={!link.trim()}>Vérifier</Button>
+            </div>
+            <p className="text-xs text-ash -mt-1">Lien TMDB (film ou série) ou IMDb (imdb.com/title/tt…)</p>
+            {linked && (
+              <div className="flex gap-4 items-center rounded-xl p-3 ring-1 ring-white/[0.08]">
+                <div className="w-11 aspect-[2/3] rounded bg-coal overflow-hidden shrink-0">{linked.poster && <img src={linked.poster} alt="" className="size-full object-cover" />}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{linked.title} <span className="text-ash font-normal">{linked.year || ''} · {item.kind === 'series' ? 'série' : 'film'}</span></div>
+                  {linked.originalTitle !== linked.title && <div className="text-xs text-ash">{linked.originalTitle}</div>}
+                  <p className="text-xs text-ash line-clamp-2 mt-1">{linked.overview}</p>
+                </div>
+                <Button variant="primary" busy={busy === candidateKey(linked)} onClick={() => pick(linked)}>Associer</Button>
+              </div>
+            )}
+          </div>
           <details className="rounded-xl ring-1 ring-white/[0.06] p-4">
             <summary className="cursor-pointer text-sm text-mist">Corriger sans TMDB (titre et année)</summary>
             <div className="mt-4 flex flex-wrap gap-3 items-end">

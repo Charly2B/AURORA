@@ -111,18 +111,25 @@ func (s *Server) handleSetupAdmin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"ok": true})
 }
 
-// startSession crée la session et pose le cookie ; false si l'erreur a déjà été répondue.
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID int64) bool {
+// createSession crée la session et pose le cookie. Le jeton brut n'est rendu au client que pour
+// les applications sans domaine Web qui le demandent explicitement (Samsung Tizen).
+func (s *Server) createSession(w http.ResponseWriter, r *http.Request, userID int64) (string, bool) {
 	tok, err := s.Sessions.Create(r.Context(), userID, r.UserAgent())
 	if err != nil {
 		fail(w, r, err)
-		return false
+		return "", false
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: tok, Path: "/", HttpOnly: true, Secure: isHTTPS(r),
 		SameSite: http.SameSiteLaxMode, MaxAge: int(auth.SessionTTL.Seconds()),
 	})
-	return true
+	return tok, true
+}
+
+// startSession conserve le contrat des clients Web/Android fondés sur le cookie.
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID int64) bool {
+	_, ok := s.createSession(w, r, userID)
+	return ok
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -153,18 +160,39 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Limiter.Success(ipKey, userKey)
-	if !s.startSession(w, r, id) {
+	tok, ok := s.createSession(w, r, id)
+	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	result := map[string]any{"ok": true}
+	if wantsSessionToken(r) {
+		result["token"] = tok
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if tok := bearerToken(r); tok != "" {
+		s.Sessions.Delete(r.Context(), tok)
+	}
 	if c, err := r.Cookie(cookieName); err == nil {
 		s.Sessions.Delete(r.Context(), c.Value)
 	}
 	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1, SameSite: http.SameSiteLaxMode})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func wantsSessionToken(r *http.Request) bool {
+	return r.Header.Get("X-Aurora-Token") == "1"
+}
+
+func bearerToken(r *http.Request) string {
+	const prefix = "Bearer "
+	value := r.Header.Get("Authorization")
+	if !strings.HasPrefix(value, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(value, prefix))
 }
 
 // Prefs : préférences d'un profil.

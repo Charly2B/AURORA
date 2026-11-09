@@ -1,4 +1,4 @@
-# Limitations connues (réelles, version 0.1.8)
+# Limitations connues (réelles, version 0.1.11)
 
 ## Non vérifié sur le matériel
 - Le paquet n'a **jamais été installé sur un vrai DS1825+ / DSM 7**. Structure, scripts et binaires sont
@@ -36,6 +36,12 @@
   distribution, ni classification (le contrôle parental ne peut alors rien filtrer, sauf à masquer les
   contenus non classés).
 - Correspondance TMDB volontairement prudente : en cas de doute, l'œuvre reste à identifier manuellement.
+- Secours IMDb sans clé supplémentaire : utilise le service de suggestions du site IMDb, non documenté
+  comme API stable ; sa disponibilité et son format peuvent changer. Sans fiche TMDB correspondante,
+  seules les informations de suggestion (titre, année, affiche éventuelle) sont disponibles ; ni résumé,
+  ni classification, ni saisons détaillées. Les règles de masquage des contenus non classés restent actives.
+- Les fautes légères sont tolérées dans la recherche et les candidats les plus proches sont proposés ;
+  une ressemblance seule ne déclenche jamais une association automatique.
 - Séries : le nom vient du premier dossier sous la racine de la bibliothèque (sinon du nom de fichier).
   Numérotation absolue (anime « Épisode 152 » sans saison) non gérée hors dossier « Saison N ».
 - Détection immédiate des ajouts : testée sur macOS (kqueue) et en conditions réelles sur Mac (film détecté en
@@ -49,6 +55,13 @@
 - Interface uniquement en français ; métadonnées en français ou anglais.
 
 ## Exploitation
+- Galerie de fonds : JPEG/PNG uniquement, 50 Mio/image ; adaptation automatique à 3840 × 2160
+  maximum par FFmpeg (proportions, format et alpha PNG conservés). Protection contre les en-têtes
+  démesurés : 128 mégapixels et 32768 pixels/côté, traitement limité à 60 s, une image à la fois.
+  FFmpeg requis pour les grandes images (fourni dans le paquet). Aucun retrait
+  d’image proposé ; elles restent conservées. Stockées dans SQLite, elles augmentent la taille des
+  sauvegardes. Le serveur fournit les images ; leur sélection/affichage reste à intégrer dans chaque
+  application cliente. Aucun changement des clients TV/Android livré ici.
 - HTTP en local (port 8890). Pour HTTPS : proxy inverse DSM.
 - Pas de mise à jour automatique : nouveau `.spk` en installation manuelle.
 - FFmpeg embarqué : build statique 7.0.2 (août 2024), épinglé par SHA-256 mesuré (l'éditeur ne publie plus
@@ -69,3 +82,5 @@
   Funnel…) qui n'ajoute pas cet en-tête rendrait la demande de code possible depuis Internet. La validation
   en deux temps (nom et adresse affichés, confirmation explicite) reste alors la protection.
 - Demandes en mémoire : un redémarrage d'AURORA annule les codes affichés (la TV en redemande un seule).
+- Le client Samsung Tizen conserve son jeton de session dans le stockage local de l'application signée ;
+  effacer les données de l'application impose une nouvelle association.

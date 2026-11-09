@@ -2,7 +2,8 @@
 
 ## Ce qui est sauvegardé
 La base SQLite `aurora.db` contient tout ce qui a de la valeur : bibliothèques, catalogue et corrections,
-profils et mots de passe (hachés), historique, progression, favoris, listes, réglages (dont la clé TMDB).
+profils et mots de passe (hachés), historique, progression, favoris, listes, réglages (dont la clé TMDB),
+et images de la galerie de fonds ajoutées par l’administrateur (octets originaux inclus, depuis 0.1.10).
 Les images en cache (`cache/`) et les segments temporaires ne sont pas sauvegardés : ils se régénèrent.
 
 ## Sauvegardes automatiques

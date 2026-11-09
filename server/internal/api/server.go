@@ -49,13 +49,14 @@ type Server struct {
 	StartedAt time.Time
 	// TMDBBase / TMDBImages : surchargés par les tests (faux serveur TMDB) ; vides = TMDB réel.
 	TMDBBase, TMDBImages string
+	IMDbBase             string // surchargé par les tests ; vide = suggestions IMDb réelles
 
-	streamKeyOnce  sync.Once
-	streamKey      []byte // clé des liens de lecture signés (régénérée à chaque démarrage)
+	streamKeyOnce sync.Once
+	streamKey     []byte // clé des liens de lecture signés (régénérée à chaque démarrage)
+
+	links          linkStore // associations d'appareils par code en attente (link.go)
 	backgroundOnce sync.Once
 	backgroundGate chan struct{} // un import à la fois, attente annulable avant lecture du corps
-
-	links linkStore // associations d'appareils par code en attente (link.go)
 
 	// Watcher : détection immédiate des ajouts (nil si inotify indisponible ; l'analyse périodique reste).
 	Watcher *watcher.Watcher
@@ -82,6 +83,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/me/password", u(s.handleChangePassword))
 	mux.Handle("GET /api/v1/events", s.requireAdmin(s.handleEvents)) // noms de fichiers : administrateurs seulement
 	mux.Handle("GET /api/v1/home", u(s.handleHome))
+	mux.Handle("GET /api/v1/backgrounds", u(s.handleBackgrounds))
+	mux.Handle("GET /api/v1/backgrounds/{id}/image", u(s.handleBackgroundImage))
 	mux.Handle("GET /api/v1/libraries", u(s.handleLibraries))
 	mux.Handle("GET /api/v1/movies", u(s.handleList("movie")))
 	mux.Handle("GET /api/v1/series", u(s.handleList("series")))
@@ -97,8 +100,6 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/collections/{id}", u(s.handleCollection))
 	mux.Handle("GET /api/v1/search", u(s.handleSearch))
 	mux.Handle("GET /api/v1/img/{name}", u(s.handleImage))
-	mux.Handle("GET /api/v1/backgrounds", u(s.handleBackgrounds))
-	mux.Handle("GET /api/v1/backgrounds/{id}/image", u(s.handleBackgroundImage))
 	mux.Handle("POST /api/v1/play", u(s.handlePlay))
 	mux.Handle("GET /api/v1/files/{id}/stream", u(s.handleDirectStream))
 	// Lien signé et temporaire : lecteurs externes (VLC sur la box) qui ne transmettent pas la session.
@@ -124,17 +125,18 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/admin/unidentified", a(s.handleUnidentified))
 	mux.Handle("POST /api/v1/admin/files/{id}/assign", a(s.handleAssignFile))
 	mux.Handle("GET /api/v1/admin/items/{id}/candidates", a(s.handleCandidates))
+	mux.Handle("GET /api/v1/admin/items/{id}/resolve", a(s.handleResolveLink))
 	mux.Handle("POST /api/v1/admin/items/{id}/match", a(s.handleMatch))
 	mux.Handle("PUT /api/v1/admin/items/{id}", a(s.handleEditItem))
 	mux.Handle("GET /api/v1/admin/items/{id}/artwork", a(s.handleArtworkList))
 	mux.Handle("POST /api/v1/admin/items/{id}/artwork", a(s.handleArtworkSet))
-	mux.Handle("POST /api/v1/admin/backgrounds", a(s.handleUploadBackground))
 	mux.Handle("GET /api/v1/admin/users", a(s.handleUsers))
 	mux.Handle("POST /api/v1/admin/users", a(s.handleCreateUser))
 	mux.Handle("PUT /api/v1/admin/users/{id}", a(s.handleUpdateUser))
 	mux.Handle("DELETE /api/v1/admin/users/{id}", a(s.handleDeleteUser))
 	mux.Handle("GET /api/v1/admin/settings", a(s.handleGetSettings))
 	mux.Handle("PUT /api/v1/admin/settings", a(s.handlePutSettings))
+	mux.Handle("POST /api/v1/admin/backgrounds", a(s.handleUploadBackground))
 	mux.Handle("GET /api/v1/admin/backups", a(s.handleBackups))
 	mux.Handle("POST /api/v1/admin/backups", a(s.handleCreateBackup))
 	mux.Handle("GET /api/v1/admin/backups/{name}", a(s.handleDownloadBackup))
@@ -198,6 +200,9 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 type userHandler func(w http.ResponseWriter, r *http.Request, u *auth.User)
 
 func (s *Server) currentUser(r *http.Request) (*auth.User, error) {
+	if tok := bearerToken(r); tok != "" {
+		return s.Sessions.Lookup(r.Context(), tok)
+	}
 	c, err := r.Cookie(cookieName)
 	if err != nil {
 		return nil, auth.ErrNoSession

@@ -11,6 +11,70 @@ go test -tags bench -run TestLoad -v -timeout 30m ./internal/bench   # charge
 scripts/build-spk.sh 0001                              # paquet + vérification de structure
 ```
 
+## Grandes images de fond — 25/10/2026 (0.1.11)
+
+Correction du refus « 8192 pixels / 16 mégapixels » : adaptation automatique jusqu’à 3840 × 2160,
+proportions et orientation EXIF respectées, format JPEG/PNG conservé, transparence PNG conservée.
+Sources jusqu’à 50 Mio. Les petites images restent inchangées.
+
+- Reproductions observées en échec avant correction : PNG 10000 × 2000, JPEG 6000 × 4000,
+  panorama 8193 × 1 ; import Web d’un fichier de 11 Mio bloqué par l’ancienne validation.
+- Tests HTTP corrigés : images récupérées et décodées avec les dimensions attendues, MIME et taille
+  cohérents, réimport dédupliqué, grande image tronquée refusée. Alpha semi-transparent vérifié avec
+  tolérance d’un niveau (arrondi swscale), zones totalement transparentes/opaques conservées exactement.
+- Revue indépendante : photo JPEG orientation EXIF 6 et attente non annulable relevées ; tests de
+  reproduction observés rouges, puis verts après correction. Photo 6000 × 4000 orientée → 1440 × 2160.
+  L’import annulé quitte la file immédiatement ; le corps est lu après acquisition du sémaphore.
+- Tests ciblés `go test ./internal/api -run '^TestBackground' -count=1` verts ; TypeScript et
+  16 tests Web verts ; `go vet ./...` vert. Essais réalisés sur Mac, FFmpeg 8.0.1 système.
+- Validation finale : `go test -race ./...` vert (intégration API 46 s), TypeScript et 16 tests Web
+  verts, `go vet ./...` vert ; builds host et DSM 0014 réussis, structure du paquet vérifiée hors DSM.
+- Aucun changement ni essai des applications clientes. Aucun déploiement NAS effectué par l’agent.
+
+## Galerie de fonds serveur — 25/10/2026 (0.1.10)
+
+- `go test -race ./...` : toutes les suites réussies, intégration incluse.
+- `cd web && npx tsc --noEmit && npx vitest run` : typecheck réussi, 16 tests réussis.
+- `go vet ./...`, `scripts/build.sh host`, `scripts/build-spk.sh 0013` : réussis.
+  Paquet `AURORA-0.1.10-0013.spk` conforme à la vérification de structure hors DSM.
+- `internal/api/backgrounds_test.go` : galerie vide, JPEG/PNG, déduplication, octets et type MIME servis,
+  accès authentifié (admin et utilisateur), refus anonyme/non-admin/CSRF, fausses images et images
+  tronquées refusées, limites de taille/dimensions, octets retrouvés dans une sauvegarde SQLite réelle.
+- `web/src/test/backgrounds.test.tsx` : import multiple multipart, boundary laissée au navigateur,
+  affichage des images, erreur d’import affichée sans perdre la galerie.
+- Essai local du binaire embarquant le Web : base isolée, migration 0006, version 0.1.10 et interface
+  d’administration chargées ; import réel depuis le navigateur, image affichée. Récupération de la
+  liste et de l’image avec un jeton Bearer : octets identiques au fichier source, SHA-256 identique,
+  réponse conditionnelle ETag/304 vérifiée. Serveur de test arrêté ensuite.
+- Revue par un agent distinct : aucun défaut actionnable relevé. Clients TV/Android non modifiés,
+  conformément à la demande de l’utilisateur. Aucun déploiement ni essai NAS/TV réel.
+
+## Recherche souple et secours IMDb — 25/10/2026
+
+- `internal/catalog/search_test.go` : pluriel manquant, lettres supprimées/ajoutées/remplacées/inversées,
+  titres originaux, accents, classement, limites et déduplication ; contenus interdits ou absents exclus.
+- `internal/metadata/imdb_test.go` : secours film/série, maintien des ambiguïtés, classement des candidats,
+  revalidation de l'identité/type, fusion conservant fichiers et historique, cache des affiches, refus des
+  redirections externes, absence de clé TMDB dans les requêtes IMDb, erreurs réseau et annulation.
+  Les corrections d'identité retirent anciennes sagas et métadonnées des saisons/épisodes ; les champs
+  manuels et les verrous sont préservés, les anciennes classifications dérivées retirées.
+- `internal/api/imdb_test.go` : recherche, lien et association IMDb sans fiche TMDB ; recherche sans
+  modification de l'œuvre, verrouillage après choix et refus d'identifiants/type incompatibles.
+- `internal/db/imdb_migration_test.go` : mise à jour d'une vraie base au schéma 4, sauvegarde avant
+  migration, reprise des anciens échecs et conservation des associations, fichiers et états de lecture.
+- `web/src/test/match.test.tsx` : sélection du bon candidat parmi plusieurs fiches IMDb sans ID TMDB,
+  protocole des associations TMDB conservé.
+- Essai réel sans clé IMDb : `LookupIMDb` retrouve **The Matrix (1999)** et **Game of Thrones (2011)**,
+  avec téléchargement et mise en cache de leurs affiches. Aucun accès au NAS pour cet essai.
+- Démarrage du binaire macOS en local avec base neuve isolée : migration 5 appliquée, `/api/v1/status`
+  annonce la version 0.1.9 et l'interface embarquée répond en HTTP 200 ; arrêt propre ensuite.
+
+Commandes de validation : `go test -race ./...`, `npx tsc --noEmit`, `npx vitest run` (14 tests),
+`scripts/build.sh host`, `scripts/build-spk.sh 0012`. Le paquet reste vérifié **hors DSM**.
+Toutes réussies ; `go vet ./...` également. Revue indépendante finale : aucun défaut restant.
+Android TV : documentation du contrat synchronisée ; `:app:assembleDebug :app:testDebugUnitTest`
+(3 tests) exécutés, aucun écran changé ni installation sur la box.
+
 ## Résultats exécutés (17/10/2026, macOS 26.6 x86-64, Go 1.27, Node 24)
 
 ### Automatisés — tous verts
@@ -150,3 +214,14 @@ constatés. Lecture sur la box **non testée**.
   vérifiés à l'écran.
 - TV (émulateur) : appui long sur une carte Continuer → fenêtre « Retirer » (focus piégé) → carte retirée ;
   panneaux arrondis avec barre de titre dans « Tous les dossiers », 7 colonnes alignées.
+
+## Lien TMDB ou IMDb collé (25/10/2026)
+- `TestParseLink` : 9 formats acceptés (dont sans `https://`) (TMDB film/série avec titre, paramètres ou saison ; IMDb www, mobile,
+  localisé) et 10 refusés (domaine imité `themoviedb.org.evil.com`, autre hôte, `ftp:`, `javascript:`, fiche
+  personne, id 0 ou démesuré, `imdb.com@evil.com`, nom IMDb…).
+- `TestResolveLink` (faux serveur TMDB) : lien TMDB → aperçu (titre, année, affiche) ; lien IMDb → `/find` →
+  fiche ; épisode IMDb sans `https://` → sa série ; fiche TMDB inexistante → 422 ; film collé pour une série →
+  422 ; IMDb inconnu → 422 ; liens invalides → 400 ; profil non
+  administrateur → 403.
+- Écran : bloc « Introuvable ? Collez un lien » conforme à la maquette validée (instance sans clé TMDB : message
+  d'erreur attendu). Aperçu + « Associer » non vu à l'écran faute de clé TMDB locale ; couvert par le test d'API.

@@ -358,22 +358,33 @@ func (s *Store) Search(ctx context.Context, v Viewer, q string, limit int) (*Sea
 	if err != nil {
 		return nil, err
 	}
-	if len(cards) == 0 {
-		cards, err = s.fuzzy(ctx, v, q, limit)
+	hasExact := len(cards) > 0
+	nearbyIDs := map[int64]bool{}
+	if len(cards) < limit*3 {
+		seen := make(map[int64]bool, len(cards))
+		for _, c := range cards {
+			seen[c.ID] = true
+		}
+		nearby, err := s.fuzzy(ctx, v, q, limit, seen)
 		if err != nil {
 			return nil, err
 		}
-		res.Fuzzy = len(cards) > 0
+		cards = append(cards, nearby...)
+		for _, c := range nearby {
+			nearbyIDs[c.ID] = true
+		}
 	}
 	for _, c := range cards {
 		switch c.Kind {
 		case "movie":
 			if len(res.Movies) < limit {
 				res.Movies = append(res.Movies, c)
+				res.Fuzzy = res.Fuzzy || (!hasExact && nearbyIDs[c.ID])
 			}
 		case "series":
 			if len(res.Series) < limit {
 				res.Series = append(res.Series, c)
+				res.Fuzzy = res.Fuzzy || (!hasExact && nearbyIDs[c.ID])
 			}
 		case "episode":
 			if len(res.Episodes) < limit {
@@ -420,14 +431,15 @@ func (s *Store) matchPeople(ctx context.Context, fq, q string) []string {
 	return out
 }
 
-// fuzzy : tolérance aux fautes de frappe par similarité de trigrammes sur les titres (films et séries).
-func (s *Store) fuzzy(ctx context.Context, v Viewer, q string, limit int) ([]Card, error) {
+// fuzzy : trigrammes et petites distances d'édition sur les titres (films et séries).
+func (s *Store) fuzzy(ctx context.Context, v Viewer, q string, limit int, seen map[int64]bool) ([]Card, error) {
 	nq := parse.Normalize(q)
 	if len([]rune(nq)) < 3 {
 		return nil, nil
 	}
 	where, args := v.Where("i")
-	rows, err := s.DB.QueryContext(ctx, "SELECT i.id, i.title, i.original_title FROM items i WHERE i.kind IN ('movie','series') AND "+where, args...)
+	rows, err := s.DB.QueryContext(ctx, "SELECT i.id, i.title, i.original_title FROM items i WHERE "+where+
+		" AND ((i.kind='movie' AND "+presentMovie+") OR (i.kind='series' AND "+presentSeries+"))", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -443,13 +455,25 @@ func (s *Store) fuzzy(ctx context.Context, v Viewer, q string, limit int) ([]Car
 		if rows.Scan(&id, &t, &o) != nil {
 			continue
 		}
+		if seen[id] {
+			continue
+		}
 		sc := max(similarity(qt, nq, parse.Normalize(t)), similarity(qt, nq, parse.Normalize(o)))
 		if sc >= 0.3 {
 			hits = append(hits, scored{id, sc})
 		}
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
 	rows.Close()
-	sort.Slice(hits, func(i, j int) bool { return hits[i].score > hits[j].score })
+	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].score == hits[j].score {
+			return hits[i].id < hits[j].id
+		}
+		return hits[i].score > hits[j].score
+	})
 	if len(hits) > limit {
 		hits = hits[:limit]
 	}
@@ -487,15 +511,52 @@ func similarity(qt map[string]bool, q, title string) float64 {
 	if title == "" {
 		return 0
 	}
-	best := jaccard(qt, trigrams(title))
+	best := max(jaccard(qt, trigrams(title)), editSimilarity(q, title))
 	words := strings.Fields(title)
 	n := len(strings.Fields(q))
 	for i := 0; i+n <= len(words); i++ {
-		if sc := jaccard(qt, trigrams(strings.Join(words[i:i+n], " "))); sc > best {
+		window := strings.Join(words[i:i+n], " ")
+		if sc := max(jaccard(qt, trigrams(window)), editSimilarity(q, window)); sc > best {
 			best = sc
 		}
 	}
 	return best
+}
+
+// editSimilarity accepte une faute (deux pour les textes plus longs), y compris deux lettres inversées.
+// Trois lignes suffisent pour la distance de Damerau-Levenshtein restreinte.
+func editSimilarity(a, b string) float64 {
+	ar, br := []rune(a), []rune(b)
+	n := max(len(ar), len(br))
+	budget := 1
+	if n >= 7 {
+		budget = 2
+	}
+	if n == 0 || len(ar)-len(br) > budget || len(br)-len(ar) > budget {
+		return 0
+	}
+	older, prev, cur := make([]int, len(br)+1), make([]int, len(br)+1), make([]int, len(br)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i, ra := range ar {
+		cur[0] = i + 1
+		for j, rb := range br {
+			cost := 0
+			if ra != rb {
+				cost = 1
+			}
+			cur[j+1] = min(prev[j+1]+1, cur[j]+1, prev[j]+cost)
+			if i > 0 && j > 0 && ra == br[j-1] && ar[i-1] == rb {
+				cur[j+1] = min(cur[j+1], older[j-1]+1)
+			}
+		}
+		older, prev, cur = prev, cur, older
+	}
+	if prev[len(br)] > budget {
+		return 0
+	}
+	return 1 - float64(prev[len(br)])/float64(n)
 }
 
 func jaccard(a, b map[string]bool) float64 {

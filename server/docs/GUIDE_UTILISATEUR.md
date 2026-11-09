@@ -26,6 +26,18 @@ puis « Retirer »). Le film, ou la série entière pour un épisode, quitte les
 relancez. Chaque profil a ses propres retraits.
 
 ## Bibliothèques
+### Images de fond pour les applications
+Dans **Administration › Réglages › Fonds d’écran des applications**, sélectionnez une ou plusieurs
+images JPEG/PNG sur votre ordinateur. Elles sont ajoutées au serveur et apparaissent dans la galerie.
+Les grandes images sont adaptées automatiquement jusqu’en 4K, en conservant leurs proportions
+et la transparence PNG. Jusqu’à 50 Mio par fichier. Un doublon n’est stocké qu’une fois.
+
+Les applications TV, Android ou autres peuvent consulter cette galerie par l’[API](API_FONDS.md),
+puis choisir et mémoriser leur propre fond. Le serveur n’impose aucun choix commun. Les applications
+clientes doivent intégrer cette API ; elles ne sont pas modifiées avec cette mise à jour serveur.
+Les images importées restent conservées et suivent les sauvegardes/restaurations AURORA.
+
+### Dossiers et indexation
 Un film ou un épisode copié dans un dossier d'AURORA apparaît **tout seul, environ 20 secondes après la fin
 de la copie** (Administration › Réglages › « Détecter immédiatement les ajouts », activé par défaut). Une
 vérification complète a lieu en plus toutes les 6 heures, et le bouton **Analyser** (Administration ›
@@ -40,6 +52,9 @@ Bibliothèques) reste disponible.
 - **Filtres** (seules les valeurs présentes sont proposées) : genre, année, résolution, langue audio,
   réalisateur/créateur, vu/non vu, HDR, favoris. Un clic sur un nom (fiche) filtre sur cette personne.
 - **Vues** : grille, compacte, liste (mémorisée sur l'appareil).
+
+La recherche retrouve aussi les titres proches : « Cras » peut trouver « Cars », « Les Visiteur »
+retrouve « Les Visiteurs ». Les résultats exacts restent prioritaires, puis viennent les suggestions.
 
 ## Fiche film
 Affiche, fond, titre et titre original, année, durée, classification, note *avec sa provenance*
@@ -85,14 +100,18 @@ classification). Le contrôle parental repose sur les classifications TMDB : **i
 si les métadonnées manquent ou sont erronées.
 
 ## Affiches
-Avec une clé TMDB, chaque film et chaque série reçoit son affiche et son fond (recherche en français, puis
-en anglais si le fichier porte le titre original). Sans fiche trouvée, AURORA compose une affiche à partir
+Avec une clé TMDB, AURORA cherche affiche et fond en français, puis en anglais si le fichier porte le
+titre original ; IMDb peut fournir une affiche en secours. Sans fiche trouvée, AURORA compose une affiche à partir
 d'une image représentative de la vidéo et du titre. Une bibliothèque de séries déclarée comme « Films »
 n'obtient pas d'affiches : AURORA le signale et la corrige en un clic (Admin › Bibliothèques).
 Un épisode rangé parmi vos films (nommé « Série S01E06 ») est classé automatiquement dans Séries.
 
-Mauvaise œuvre associée : fiche › **Corriger l'identification** (recherche TMDB avec aperçus, ou titre
-manuel). Bonne œuvre mais affiche qui ne plaît pas : fiche › **Changer l'affiche** — toutes les affiches
+Mauvaise œuvre associée : fiche › **Corriger l'identification** (recherche TMDB, puis IMDb en secours,
+avec aperçus et titres proches, ou titre manuel). Un candidat uniquement présent sur IMDb reste
+associable ; sa fiche contient titre, année et affiche éventuelle, sans résumé ni classification.
+Vous pouvez aussi utiliser le bloc **« Introuvable ? Collez un lien »** — collez l'adresse de la
+fiche sur themoviedb.org (`…/movie/…` ou `…/tv/…`) ou sur imdb.com (`…/title/tt…`, `https://` facultatif ; un
+lien d'épisode IMDb mène à sa série), **Vérifier** affiche la fiche trouvée, **Associer** l'applique (verrouillée). Bonne œuvre mais affiche qui ne plaît pas : fiche › **Changer l'affiche** — toutes les affiches
 et tous les fonds proposés par TMDB, filtrables par langue (français, anglais, sans texte) ; le choix est
 conservé par les mises à jour automatiques (seule une nouvelle identification, donc une autre œuvre, le remplace).
 

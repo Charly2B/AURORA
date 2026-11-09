@@ -211,14 +211,19 @@ func (s *Server) handleLinkPoll(w http.ResponseWriter, r *http.Request) {
 	case userID == 0:
 		writeJSON(w, http.StatusOK, map[string]any{"status": "pending"})
 	default:
-		if !s.startSession(w, r, userID) {
+		tok, ok := s.createSession(w, r, userID)
+		if !ok {
 			// Échec de création : la demande validée est rendue, la TV réessaiera au suivi suivant.
 			s.links.mu.Lock()
 			s.links.pending[body.Poll] = d
 			s.links.mu.Unlock()
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+		result := map[string]any{"status": "ok"}
+		if wantsSessionToken(r) {
+			result["token"] = tok
+		}
+		writeJSON(w, http.StatusOK, result)
 	}
 }
 

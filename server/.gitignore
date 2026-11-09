@@ -8,3 +8,6 @@ web/dist/
 *.spk
 .DS_Store
 /testdata/media/
+
+# graphify (graphe local, régénérable)
+graphify-out/

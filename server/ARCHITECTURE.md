@@ -29,7 +29,9 @@ Navigateur ──HTTP :8890──▶ aurora (Go)
 | `internal/probe` | appel et lecture de ffprobe (pistes, HDR attesté, chapitres) |
 | `internal/scanner` | indexation incrémentale, détection des déplacements, identification, ffprobe en parallèle limité |
 | `internal/watcher` | détection immédiate des ajouts (inotify via fsnotify) : un watch par dossier, analyse après 20 s de calme |
-| `internal/metadata` | client TMDB, correspondance prudente, fusion des doublons, saisons/épisodes, images |
+| `internal/metadata` | clients TMDB/IMDb, recherche de secours, correspondance prudente, fusion des doublons, saisons/épisodes, images |
+| `internal/db/migrations/0005_imdb_fallback.sql` | identifiant IMDb des œuvres, reprise des anciennes recherches infructueuses |
+| `internal/metadata/link.go` | lien TMDB/IMDb collé par l'administrateur : extraction de l'identifiant, `/find` IMDb → TMDB, aperçu |
 | `internal/catalog` | requêtes de lecture filtrées par profil (`Viewer.Where`), accueil, recherche FTS + approchante, état de lecture |
 | `internal/playback` | décision direct/remux/conversion, sessions ffmpeg HLS (régulation SIGSTOP/SIGCONT, purge), sous-titres WebVTT, miniatures, calage sur image clé |
 | `internal/api` | routes HTTP, middlewares (CSRF, en-têtes de sécurité, reprise sur panique), erreurs centralisées |
@@ -50,6 +52,16 @@ Navigateur ──HTTP :8890──▶ aurora (Go)
 | `scripts/make-icons.py` | génère les icônes PNG (Pillow) ; les PNG sont versionnés |
 
 ## Décisions non évidentes (et pourquoi)
+- **Galerie de fonds des applications** (0.1.10) : table `backgrounds` (migration 0006), contenant les
+  octets JPEG/PNG et leurs métadonnées ; import atomique, déduplication SHA-256, sauvegardes SQLite
+  complètes sans dossier supplémentaire. Depuis 0.1.11 : sources jusqu’à 50 Mio ; images dépassant
+  3840 × 2160 adaptées par FFmpeg embarqué, proportions, format et alpha PNG conservés. Une seule
+  conversion à la fois, un thread, délai de 60 s ; plafond de protection 128 mégapixels/32768 pixels
+  par côté avant décodage, puis validation de l’image finale. Petites images inchangées.
+  Import réservé aux administrateurs ; liste et images
+  accessibles aux profils connectés (cookie/Bearer). Aucun fond imposé par le serveur : chaque client
+  choisit et mémorise le sien. Contrat : [API_FONDS.md](docs/API_FONDS.md). Les clients restent à adapter
+  par l’utilisateur, conformément à sa demande du 25/10/2026 ; `/home` reste inchangé.
 - **Go + SQLite pur Go (modernc)** : binaire statique sans cgo → aucune dépendance aux bibliothèques
   de DSM, compilation croisée depuis n'importe quel poste.
 - **Un seul écrivain à la fois** : `_txlock=immediate` + `busy_timeout` ; une seule analyse de
@@ -90,6 +102,11 @@ Navigateur ──HTTP :8890──▶ aurora (Go)
     par adresse, 100 au total ; validations ratées limitées par profil **et** par adresse, compteur jamais
     remis à zéro par une réussite.
   - En mémoire seulement : un redémarrage annule les demandes, la TV en redemande une.
+  - Samsung Tizen n'a pas de domaine Web et ne peut donc pas renvoyer le cookie `SameSite=Lax` au NAS.
+    Le client peut demander explicitement (`X-Aurora-Token: 1`) que `login` ou le suivi validé rende aussi
+    le jeton brut, puis l'envoyer dans `Authorization: Bearer …`. Sans cet en-tête, les réponses restent
+    strictement inchangées pour le Web et Android. Le lecteur AVPlay reçoit le même jeton sous forme de
+    cookie via sa propriété native `COOKIE`; le jeton n'est jamais placé dans une URL.
   - Pourquoi : saisir un mot de passe à la télécommande échouait en réel (clavier TV, compte DSM confondu).
 - **Adresse du client derrière un proxy** (`clientIP`) : **dernier** élément de `X-Forwarded-For` (celui
   ajouté par le nginx de DSM), seulement si la connexion vient de la machine locale. Le premier élément est
@@ -116,6 +133,12 @@ Navigateur ──HTTP :8890──▶ aurora (Go)
   épisode, le bandeau et « Séries en cours » excluent l'œuvre tant que `hidden_at >= dernière lecture` (filtre
   `notHidden` de home.go) : elle revient d'elle-même à la lecture suivante. Fichier, progression et « vu »
   intacts ; propre à chaque profil ; reporté lors d'une fusion d'œuvres (`MergeItems`), sinon perdu en cascade.
+- **Lien TMDB ou IMDb collé** (`GET /api/v1/admin/items/{id}/resolve?url=…`) quand la recherche ne trouve pas
+  l'œuvre : seuls `themoviedb.org/{movie|tv}/{id}` et `imdb.com/[xx/]title/tt…` sont reconnus (http ou https).
+  Le serveur **n'ouvre jamais l'adresse collée** : il n'en garde que l'identifiant et interroge l'API TMDB
+  configurée (IMDb → `/find?external_source=imdb_id`). Pas de requête vers un hôte choisi par l'utilisateur (SSRF
+  impossible). Le type du lien (film/série) doit correspondre à l'œuvre (sinon 422). Réponse = aperçu ;
+  l'association passe par `/match` (verrouillée), après clic sur « Associer ».
 - **Lien de lecture signé** (`/api/v1/files/{id}/signed`) : HMAC (clé régénérée à chaque démarrage) sur
   fichier|profil|expiration|empreinte du mot de passe — un changement de mot de passe révoque tous les liens ;
   valable 4 h ; droits revérifiés à chaque requête ; fourni seulement si `/play` reçoit `external: true`
@@ -150,13 +173,27 @@ Navigateur ──HTTP :8890──▶ aurora (Go)
 - **TMDB** : recherche dans la langue configurée, puis en anglais si aucune correspondance exacte (fichiers
   nommés avec le titre original), puis avec l'« année » réintégrée au titre (« Wonder Woman 1984 ») ; fiches
   toujours récupérées dans la langue configurée. Films et séries sont enrichis quel que soit le type de bibliothèque.
+- **Secours IMDb** : recherche des suggestions IMDb quand TMDB ne fournit pas de résultat pertinent.
+  L'identifiant IMDb permet de récupérer la fiche TMDB via `/find` lorsqu'elle existe ; sinon l'œuvre
+  conserve son `imdb_id` et les informations disponibles (titre, année, affiche). Aucune note, classification
+  ni synopsis n'est inventé. Aperçus IMDb servis par le cache local, téléchargements limités à ses hôtes
+  d'images autorisés, redirections contrôlées. L'API d'administration ajoute `imdbId` facultatif aux
+  candidats ; `/match` accepte **un seul** de `tmdbId` ou `imdbId`, revérifié côté serveur.
+  Le choix flou reste humain ; l'association automatique exige toujours titre exact et année non ambiguë.
+  Une ambiguïté TMDB connue reste à confirmer, même si les suggestions IMDb n'en montrent qu'une partie.
+  Lors d'une correction d'identité, seules les métadonnées dérivées de l'ancienne fiche sont effacées
+  (sagas TMDB, saisons, épisodes) ; fichiers, historique, collections et champs corrigés manuellement sont conservés.
+- **Recherche locale souple** : FTS sans accents, puis titres proches par trigrammes et distance d'édition
+  (lettre absente, ajoutée, remplacée ou inversée). Déduplication et tri par proximité ; droits du profil,
+  contrôle parental et présence des fichiers appliqués avant le choix des résultats.
 - **Vignettes** : filtre ffmpeg `thumbnail=30` (image la plus représentative), pas une capture au hasard
   (souvent noire). Réduction à 640 px **avant** le filtre : il garde 30 images en mémoire (≈ 750 Mo en 4K sinon).
 - **Cache des sous-titres** : clé = source réelle (chemin + taille + date du fichier externe, ou n° de flux
   interne), jamais la position dans la liste, qui change quand un `.srt` est ajouté (sinon mauvaise piste servie).
 - **Sessions ffmpeg** : contexte et canaux créés avant publication de la session → un arrêt concurrent
   ne peut pas laisser de processus orphelin.
-- **Sécurité** : cookie HttpOnly SameSite=Lax (Secure derrière proxy HTTPS local) ; en-tête `X-Aurora`
+- **Sécurité** : cookie HttpOnly SameSite=Lax (Secure derrière proxy HTTPS local), ou Bearer retourné seulement
+  sur demande explicite aux applications sans domaine Web ; en-tête `X-Aurora`
   obligatoire sur toute requête modifiante (CSRF) ; CSP stricte ; noms d'images/segments/sauvegardes par
   motif ; dossiers explorables limités aux volumes (liens résolus) ; sous-titres externes : fichiers
   réguliers dans la bibliothèque uniquement ; erreurs TMDB sans URL (la clé v3 y figure) ;
@@ -169,7 +206,7 @@ Navigateur ──HTTP :8890──▶ aurora (Go)
 - Aucune suppression de données utilisateur dans les scripts DSM (pas de `rm`), ni de sauvegarde
   automatique. Le seul effacement fait par AURORA concerne ses propres segments HLS temporaires.
 - Pas de `run-as root` dans `conf/privilege`, pas de port publié vers Internet (`port_forward="no"`).
-- Ne pas modifier une migration publiée (0001 à 0004) : ajouter `0005_…sql`.
+- Ne pas modifier une migration incluse dans un paquet (0001 à 0005) : ajouter `0006_…sql`.
 - Ne pas surveiller les dossiers techniques (`scanner.SkipDir`) ni réagir aux évènements `Chmod` : boucle
   d'analyses déclenchée par DSM lui-même.
 - Ne pas réactiver le HLS natif hors navigateurs Apple, ni servir la playlist avec `ServeFile`.

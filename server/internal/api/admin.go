@@ -650,6 +650,9 @@ func (s *Server) tmdb(ctx context.Context) *metadata.Client {
 	if s.TMDBBase != "" {
 		c.BaseURL, c.ImageURL = s.TMDBBase, s.TMDBImages
 	}
+	if s.IMDbBase != "" {
+		c.IMDbURL = s.IMDbBase
+	}
 	return c
 }
 
@@ -684,7 +687,7 @@ func (s *Server) handleCandidates(w http.ResponseWriter, r *http.Request, u *aut
 	if kind == "series" {
 		tk = "tv"
 	}
-	res, err := c.Search(ctx, tk, q, year)
+	res, err := c.SearchCandidates(ctx, tk, q, year)
 	if err != nil {
 		fail(w, r, &httpError{http.StatusBadGateway, err.Error()})
 		return
@@ -692,7 +695,75 @@ func (s *Server) handleCandidates(w http.ResponseWriter, r *http.Request, u *aut
 	writeJSON(w, http.StatusOK, res)
 }
 
-// handleMatch applique une fiche TMDB choisie par l'administrateur ; la correspondance est verrouillée.
+// handleResolveLink : GET /api/v1/admin/items/{id}/resolve?url=… — lien TMDB ou IMDb collé quand la recherche
+// ne trouve pas l'œuvre. Renvoie l'aperçu de la fiche (comme un résultat de recherche) ; l'association se fait
+// ensuite par /match, après confirmation. Seul l'identifiant est extrait du lien : l'adresse n'est jamais ouverte.
+func (s *Server) handleResolveLink(w http.ResponseWriter, r *http.Request, u *auth.User) {
+	id, err := pathID(r, "id")
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	ctx := r.Context()
+	c := s.tmdb(ctx)
+	if c == nil {
+		fail(w, r, badRequest("aucune clé TMDB : configurez-la dans Administration > Métadonnées"))
+		return
+	}
+	var kind string
+	if err := s.DB.QueryRowContext(ctx, `SELECT kind FROM items WHERE id=?`, id).Scan(&kind); err != nil {
+		fail(w, r, catalog.ErrNotFound)
+		return
+	}
+	want := map[string]string{"movie": "movie", "series": "tv"}[kind]
+	if want == "" {
+		fail(w, r, badRequest("seuls les films et les séries s'associent à TMDB"))
+		return
+	}
+	linkKind, tmdbID, imdbID, err := metadata.ParseLink(r.URL.Query().Get("url"))
+	if err != nil {
+		fail(w, r, badRequest("%s", err.Error()))
+		return
+	}
+	if imdbID != "" {
+		if linkKind, tmdbID, err = c.FindIMDb(ctx, imdbID); err != nil {
+			if errors.Is(err, metadata.ErrIMDbNotFound) {
+				res, lookupErr := c.LookupIMDb(ctx, want, imdbID)
+				if lookupErr == nil {
+					writeJSON(w, http.StatusOK, res)
+					return
+				}
+				err = lookupErr
+			}
+			status := http.StatusBadGateway
+			if errors.Is(err, metadata.ErrIMDbNotFound) {
+				status = http.StatusUnprocessableEntity
+			}
+			fail(w, r, &httpError{status, err.Error()})
+			return
+		}
+	}
+	if linkKind != want {
+		label := map[string]string{"movie": "un film", "tv": "une série"}
+		fail(w, r, &httpError{http.StatusUnprocessableEntity,
+			fmt.Sprintf("ce lien désigne %s, alors que cette œuvre est %s", label[linkKind], label[want])})
+		return
+	}
+	res, err := c.Lookup(ctx, linkKind, tmdbID)
+	if errors.Is(err, metadata.ErrNotFound) {
+		fail(w, r, &httpError{http.StatusUnprocessableEntity, "cette fiche n'existe pas sur TMDB : vérifiez le lien"})
+		return
+	}
+	if err != nil {
+		fail(w, r, &httpError{http.StatusBadGateway, err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+var imdbIDPattern = regexp.MustCompile(`^tt\d{7,10}$`)
+
+// handleMatch applique une fiche TMDB ou IMDb choisie par l'administrateur ; correspondance verrouillée.
 func (s *Server) handleMatch(w http.ResponseWriter, r *http.Request, u *auth.User) {
 	id, err := pathID(r, "id")
 	if err != nil {
@@ -700,10 +771,13 @@ func (s *Server) handleMatch(w http.ResponseWriter, r *http.Request, u *auth.Use
 		return
 	}
 	var req struct {
-		TmdbID int `json:"tmdbId"`
+		TmdbID int    `json:"tmdbId"`
+		IMDbID string `json:"imdbId"`
 	}
-	if err := readJSON(r, &req); err != nil || req.TmdbID <= 0 {
-		fail(w, r, badRequest("identifiant TMDB invalide"))
+	if err := readJSON(r, &req); err != nil ||
+		(req.TmdbID <= 0 && !imdbIDPattern.MatchString(req.IMDbID)) ||
+		(req.IMDbID != "" && (req.TmdbID != 0 || !imdbIDPattern.MatchString(req.IMDbID))) {
+		fail(w, r, badRequest("indiquez un seul identifiant TMDB ou IMDb valide"))
 		return
 	}
 	ctx := r.Context()
@@ -718,18 +792,23 @@ func (s *Server) handleMatch(w http.ResponseWriter, r *http.Request, u *auth.Use
 		return
 	}
 	var target int64
-	switch kind {
-	case "movie":
-		target, err = s.Enricher.ApplyMovie(ctx, c, id, req.TmdbID, "locked")
-	case "series":
-		target, err = s.Enricher.ApplySeries(ctx, c, id, req.TmdbID, "locked")
-	default:
+	if kind != "movie" && kind != "series" {
 		err = badRequest("seuls les films et les séries peuvent être associés")
+	} else if req.IMDbID != "" {
+		target, err = s.Enricher.ApplyIMDb(ctx, c, id, req.IMDbID, "locked")
+	} else if kind == "movie" {
+		target, err = s.Enricher.ApplyMovie(ctx, c, id, req.TmdbID, "locked")
+	} else {
+		target, err = s.Enricher.ApplySeries(ctx, c, id, req.TmdbID, "locked")
 	}
 	if err != nil {
 		var he *httpError
 		if errors.As(err, &he) {
 			fail(w, r, err)
+			return
+		}
+		if errors.Is(err, metadata.ErrIMDbNotFound) {
+			fail(w, r, &httpError{http.StatusUnprocessableEntity, err.Error()})
 			return
 		}
 		fail(w, r, &httpError{http.StatusBadGateway, err.Error()})

@@ -1,12 +1,77 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 )
+
+// Une application Tizen n'a pas de domaine Web : son cookie SameSite=Lax n'est donc pas renvoyé
+// au NAS. Elle demande explicitement le jeton, le conserve localement et l'envoie en Bearer.
+func TestDeviceLinkToken(t *testing.T) {
+	e := newEnv(t)
+	admin := e.client()
+	admin.do("POST", "/api/v1/setup/admin", map[string]string{"username": "admin", "password": "motdepasse1"}, nil)
+
+	tv := e.client()
+	var start struct {
+		Code string `json:"code"`
+		Poll string `json:"poll"`
+	}
+	tv.do("POST", "/api/v1/auth/link/start", map[string]string{"name": "Samsung TV"}, &start)
+	admin.do("POST", "/api/v1/auth/link/approve", map[string]any{"code": start.Code, "confirm": true}, nil)
+
+	body, _ := json.Marshal(map[string]string{"poll": start.Poll})
+	req, _ := http.NewRequest("POST", e.srv.URL+"/api/v1/auth/link/poll", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Aurora", "1")
+	req.Header.Set("X-Aurora-Token", "1")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	var linked struct {
+		Status string `json:"status"`
+		Token  string `json:"token"`
+	}
+	if err := json.Unmarshal(b, &linked); err != nil || resp.StatusCode != 200 || linked.Status != "ok" || len(linked.Token) < 32 {
+		t.Fatalf("jeton Tizen absent : code=%d réponse=%s err=%v", resp.StatusCode, b, err)
+	}
+
+	me, _ := http.NewRequest("GET", e.srv.URL+"/api/v1/auth/me", nil)
+	me.Header.Set("Authorization", "Bearer "+linked.Token)
+	resp, err = http.DefaultClient.Do(me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !bytes.Contains(b, []byte(`"username":"admin"`)) {
+		t.Fatalf("jeton Tizen refusé : code=%d réponse=%s", resp.StatusCode, b)
+	}
+
+	logout, _ := http.NewRequest("POST", e.srv.URL+"/api/v1/auth/logout", bytes.NewReader([]byte("{}")))
+	logout.Header.Set("Content-Type", "application/json")
+	logout.Header.Set("X-Aurora", "1")
+	logout.Header.Set("Authorization", "Bearer "+linked.Token)
+	resp, err = http.DefaultClient.Do(logout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	resp, _ = http.DefaultClient.Do(me)
+	resp.Body.Close()
+	if resp.StatusCode != 401 {
+		t.Fatalf("jeton Tizen non révoqué à la déconnexion : %d", resp.StatusCode)
+	}
+}
 
 // Association par code : la TV obtient une session sans mot de passe, une seule fois, et seulement
 // après validation par un profil connecté.

@@ -12,8 +12,9 @@ Médiathèque native Synology DSM 7 (Go + SQLite + React). Lire d'abord [ARCHITE
 - Jamais de Docker, VM ou Container Manager. Jamais d'écriture dans les dossiers de vidéos.
 - Aucune suppression (`rm`) de données de l'utilisateur ; ce qui doit disparaître va à la Corbeille.
 - Ne rien déclarer « testé sur le NAS » sans l'avoir fait : la recette est dans docs/TESTS.md.
-- Schéma : 0001 à 0004 sont publiées ; toute évolution = nouvelle migration (0005…).
+- Schéma : 0001 à 0005 sont incluses dans les paquets préparés ; toute évolution = nouvelle migration (0006…).
 - Toute modification de code met à jour la doc (README, ARCHITECTURE, docs/*, ce fichier, AGENTS.md).
 - Après modification : tests verts, puis revue par un agent distinct (pas d'auto-validation).
 - Client Android TV séparé : `~/Documents/AndroidStudio/AuroraTV` — une évolution de l'API doit y être
   reportée (`net/Models.kt`), et inversement.
+- Authentification Tizen : `X-Aurora-Token: 1` est opt-in ; ne jamais rendre le jeton aux clients qui ne le demandent pas.

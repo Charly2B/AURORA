@@ -27,3 +27,5 @@ macos/DerivedData/
 macos/.worktrees/
 macos/*.xcuserstate
 macos/xcuserdata/
+
+android-tv/.omc/

@@ -8,7 +8,7 @@ AURORA est une médiathèque personnelle auto-hébergée sur Synology DSM 7, acc
 
 | Dossier | Version | Plateforme | Lecteur |
 |---|---:|---|---|
-| [`server/`](server/) | 0.1.8 | Synology DSM 7 x86-64 | Web, FFmpeg côté NAS |
+| [`server/`](server/) | 0.1.11 | Synology DSM 7 x86-64 | Web, FFmpeg côté NAS |
 | [`android-tv/`](android-tv/) | 0.1.0 | Android TV 7.0+ | Media3/ExoPlayer ; repli externe historique facultatif |
 | [`macos/`](macos/) | 0.1.0 | macOS 15+, Intel et Apple Silicon | **libmpv intégré**, aucun VLC |
 
@@ -20,6 +20,8 @@ AURORA est une médiathèque personnelle auto-hébergée sur Synology DSM 7, acc
 - Direct Play prioritaire, remux, puis conversion H.264/HLS si nécessaire ;
 - pistes audio, sous-titres, chapitres et épisode suivant ;
 - association d’un appareil par code sur `http://<nas>:8890/link` ;
+- galerie de fonds d’écran sur le NAS, partagée par les applications Android TV et macOS ;
+- interface « Cinémathèque » commune à macOS et Android TV ;
 - administration, diagnostics, sauvegarde et restauration sur le NAS.
 
 > La connexion utilise un **compte AURORA**, pas le compte Synology DSM.
@@ -54,6 +56,7 @@ Le serveur choisit Direct Play, remux ou conversion selon les capacités annonc�
 - [Serveur : tests](server/docs/TESTS.md)
 - [Android TV : utilisation et télécommande](android-tv/README.md)
 - [macOS : build, DMG et limites](macos/README.md)
+- [Serveur : API des fonds d’écran](server/docs/API_FONDS.md)
 - [Politique de sécurité](SECURITY.md)
 
 ## Développement

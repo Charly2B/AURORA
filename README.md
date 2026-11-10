@@ -4,6 +4,12 @@
 
 AURORA est une médiathèque personnelle auto-hébergée sur Synology DSM 7, accompagnée de lecteurs Android TV et macOS natifs. Aucun service cloud, abonnement ou compte externe n’est requis pour utiliser la médiathèque.
 
+## Vidéo de présentation
+
+https://github.com/user-attachments/assets/e52abfe6-6da9-4414-9293-de4a202955fb
+
+Aussi sur YouTube : https://youtu.be/1K1ZaQkcYl0
+
 ## Les trois composants
 
 | Dossier | Version | Plateforme | Lecteur |

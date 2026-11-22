@@ -8,7 +8,7 @@ AURORA est une médiathèque personnelle auto-hébergée sur Synology DSM 7, acc
 
 https://github.com/user-attachments/assets/e52abfe6-6da9-4414-9293-de4a202955fb
 
-Aussi sur YouTube : https://youtu.be/1K1ZaQkcYl0
+Aussi sur YouTube : https://youtu.be/1K1ZaQkcYl0 et sur Instagram : https://www.instagram.com/reel/DgCaApriAmJ/
 
 ## Les trois composants
 
